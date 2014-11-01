@@ -1,0 +1,3 @@
+[submodule "third-party/ovs-driver"]
+	path = third-party/ovs-driver
+	url = https://github.com/mavenugo/ovs-driver
