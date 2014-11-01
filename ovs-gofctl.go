@@ -1,6 +1,5 @@
-
-// ovs-gofctl is a sample Go program that make use of cgo to access 
-// OVS libraries and executes functions that is equivalent to 
+// ovs-gofctl is a sample Go program that make use of cgo to access
+// OVS libraries and executes functions that is equivalent to
 // 'ovs-ofctl show' command
 
 package main
@@ -10,18 +9,47 @@ package main
 // #include <ovs-driver.h>
 import "C"
 import (
-  "fmt"
-  "os"
+	"fmt"
+	"os"
 )
 
-func usage() {
-    fmt.Println("Usage : ovs-gofctl <bridge-name>")
+func show_usage() {
+	fmt.Println("Usage : ovs-gofctl <command> <bridge-name>")
+}
+
+func flow_mod_usage() {
+	fmt.Println("Usage : ovs-gofctl <command> <bridge-name> <flow>")
 }
 
 func main() {
-    if len(os.Args) < 2 {
-        usage()
-        return
-    }
-    fmt.Printf("Show returns : %s\n", C.GoString(C.show_ofctl(C.CString(os.Args[1]))));
+	switch os.Args[1] {
+	case "show":
+		if len(os.Args) < 3 {
+			show_usage()
+			return
+		}
+		fmt.Printf("Show returns : %s\n",
+			C.GoString(
+				C.ovs_get_features(
+					C.CString(os.Args[2]))))
+	case "add-flow":
+		if len(os.Args) < 4 {
+			flow_mod_usage()
+			return
+		}
+                C.ovs_add_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+	case "del-flow":
+		if len(os.Args) < 4 {
+			flow_mod_usage()
+			return
+		}
+                C.ovs_del_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+	case "mod-flow":
+		if len(os.Args) < 4 {
+			flow_mod_usage()
+			return
+		}
+                C.ovs_mod_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+	default:
+	}
 }
