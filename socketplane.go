@@ -3,5 +3,6 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Print("HELLO SOCKETPLANE")
+	go Bonjour("eth1")
+	fmt.Println("HELLO SOCKETPLANE")
 }
