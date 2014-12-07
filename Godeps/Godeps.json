@@ -1,0 +1,47 @@
+{
+	"ImportPath": "github.com/socketplane/socketplane",
+	"GoVersion": "go1.3.3 darwin/amd64",
+	"Packages": [
+		"github.com/socketplane/socketplane"
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/cenkalti/hub",
+			"Comment": "v1.0.0-12-g7be60e1",
+			"Rev": "7be60e186e66cd86db2d50ef2ca3778e281c87b4"
+		},
+		{
+			"ImportPath": "github.com/cenkalti/rpc2",
+			"Rev": "8e2be6d2c8ad7089dee2e055be9b7d2af407e667"
+		},
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "dc30c7cd4ed2fc8af73d49da4ee285404958b8bd"
+		},
+		{
+			"ImportPath": "github.com/socketplane/bonjour",
+			"Comment": "v0.1.2",
+			"Rev": "cf929aff291c9902ab5455a9a6d40c2d5345a146"
+		},
+		{
+			"ImportPath": "github.com/socketplane/libovsdb",
+			"Comment": "v0.1",
+			"Rev": "555a561202ec17fe6c068038a35291ce9ba33066"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/iana",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/ipv4",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/ipv6",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		}
+	]
+}

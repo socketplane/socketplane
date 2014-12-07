@@ -6,7 +6,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/socketplane/libovsdb"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 )
 
 var quit chan bool

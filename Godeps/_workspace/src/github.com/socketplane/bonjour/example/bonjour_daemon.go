@@ -2,36 +2,36 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
+	"os"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 )
 
-const DOCKER_CLUSTER_SERVICE = "_docker._cluster"
-const DOCKER_CLUSTER_SERVICE_PORT = 9999 //TODO : fix this
+const DOCKER_CLUSTER_SERVICE = "_foobar._service"
 const DOCKER_CLUSTER_DOMAIN = "local"
 
 func main() {
-	go Bonjour("eth1")
-	fmt.Println("HELLO SOCKETPLANE")
-}
-
-func Bonjour(intfName string) {
+	var intfName = ""
+	if len(os.Args) > 1 {
+		intfName = os.Args[1]
+	}
 	b := bonjour.Bonjour{
 		ServiceName:     DOCKER_CLUSTER_SERVICE,
 		ServiceDomain:   DOCKER_CLUSTER_DOMAIN,
-		ServicePort:     DOCKER_CLUSTER_SERVICE_PORT,
+		ServicePort:     9999,
 		InterfaceName:   intfName,
 		OnMemberHello:   newMember,
 		OnMemberGoodBye: removeMember,
 	}
 	b.Start()
+
+	select {}
 }
 
 func newMember(addr net.IP) {
-	log.Println("New Member Added : ", addr)
+	fmt.Println("New Member Added : ", addr)
 }
 func removeMember(addr net.IP) {
-	log.Println("Member Left : ", addr)
+	fmt.Println("Member Left : ", addr)
 }

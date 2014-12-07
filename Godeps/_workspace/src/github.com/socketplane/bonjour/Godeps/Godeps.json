@@ -1,0 +1,25 @@
+{
+	"ImportPath": "github.com/socketplane/bonjour",
+	"GoVersion": "go1.3.3 darwin/amd64",
+	"Deps": [
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "dc30c7cd4ed2fc8af73d49da4ee285404958b8bd"
+		},
+		{
+			"ImportPath": "golang.org/x/net/internal/iana",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/ipv4",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/ipv6",
+			"Comment": "null-223",
+			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+		}
+	]
+}
