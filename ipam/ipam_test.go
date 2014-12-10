@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/socketplane/ecc"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
 func TestInit(t *testing.T) {

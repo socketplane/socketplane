@@ -1,0 +1,4 @@
+ecc
+===
+
+Embedded Consul Client

@@ -1,0 +1,117 @@
+{
+	"ImportPath": "github.com/socketplane/ecc",
+	"GoVersion": "go1.2.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/armon/circbuf",
+			"Rev": "f092b4f207b6e5cce0569056fba9e1a2735cb6cf"
+		},
+		{
+			"ImportPath": "github.com/armon/consul-api",
+			"Rev": "0e644b80dc2054cd4edbfa7a273b87f37fc120a1"
+		},
+		{
+			"ImportPath": "github.com/armon/go-metrics",
+			"Rev": "02a28a76dd20081bdd2a92133d467164450a926b"
+		},
+		{
+			"ImportPath": "github.com/armon/go-radix",
+			"Rev": "b045fc0ad3587e8620fb42a0dea882cf8c08aef9"
+		},
+		{
+			"ImportPath": "github.com/armon/gomdb",
+			"Rev": "a8e036c4dabe7437014ecf9dbc03c6f6f0766ef8"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/acl",
+			"Comment": "v0.4.1",
+			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/command",
+			"Comment": "v0.4.1",
+			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/consul",
+			"Comment": "v0.4.1",
+			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/watch",
+			"Comment": "v0.4.1",
+			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-checkpoint",
+			"Rev": "efefdc69845f7fa7245d20827d31fb27b848d955"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
+			"Rev": "71c2886f5a673a35f909803f38ece5810165097b"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-syslog",
+			"Rev": "ac3963b72ac367e48b1e68a831e62b93fb69091c"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/golang-lru",
+			"Rev": "253b2dc1ca8bae42c3b5b6e53dd2eab1a7551116"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/hcl",
+			"Rev": "2c88e7ea6e73ce6455c11cc8a8375e6220913f7f"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/logutils",
+			"Rev": "23b0af5510a2d1442103ef83ffcf53eb82f3debc"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/memberlist",
+			"Rev": "16d947e2d4b3f1fe508ee1d9b6ec34b8fd2e96d8"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/raft",
+			"Rev": "cc9710ab540985954a67c108f414aa3152f5916f"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/raft-mdb",
+			"Rev": "6f52d0ce62a34e3f5bd29aa4d7068030d700d94a"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/serf",
+			"Comment": "v0.6.3-63-g791df5d",
+			"Rev": "791df5d5fc18437e54052a45e2d20c766ee15028"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/terraform/helper/multierror",
+			"Comment": "v0.3.1-109-g5d89cae",
+			"Rev": "5d89cae1d79e6710386a1d0d9797eb276b4d3fb6"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/yamux",
+			"Rev": "9feabe6854fadca1abec9cd3bd2a613fe9a34000"
+		},
+		{
+			"ImportPath": "github.com/inconshreveable/muxado",
+			"Rev": "f693c7e88ba316d1a0ae3e205e22a01aa3ec2848"
+		},
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "dc30c7cd4ed2fc8af73d49da4ee285404958b8bd"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/cli",
+			"Rev": "e3c2e3d39391e9beb9660ccd6b4bd9a2f38dd8a0"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/mapstructure",
+			"Rev": "740c764bc6149d3f1806231418adb9f52c11bcbf"
+		},
+		{
+			"ImportPath": "github.com/ryanuber/columnize",
+			"Comment": "v2.0.1-6-g44cb478",
+			"Rev": "44cb4788b2ec3c3d158dd3d1b50aba7d66f4b59a"
+		}
+	]
+}
