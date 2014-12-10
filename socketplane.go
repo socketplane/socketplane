@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/socketplane/socketplane/ipam"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 )
@@ -14,7 +17,16 @@ const DOCKER_CLUSTER_DOMAIN = "local"
 
 func main() {
 	go Bonjour("eth1")
+	ipam.Init("", true)
 	fmt.Println("HELLO SOCKETPLANE")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			os.Exit(0)
+		}
+	}()
+	select {}
 }
 
 func Bonjour(intfName string) {
