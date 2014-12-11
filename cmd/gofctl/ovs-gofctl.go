@@ -37,19 +37,19 @@ func main() {
 			flow_mod_usage()
 			return
 		}
-                C.ovs_add_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+		C.ovs_add_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
 	case "del-flow":
 		if len(os.Args) < 4 {
 			flow_mod_usage()
 			return
 		}
-                C.ovs_del_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+		C.ovs_del_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
 	case "mod-flow":
 		if len(os.Args) < 4 {
 			flow_mod_usage()
 			return
 		}
-                C.ovs_mod_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
+		C.ovs_mod_flow(C.CString(os.Args[2]), C.CString(os.Args[3]))
 	default:
 	}
 }
