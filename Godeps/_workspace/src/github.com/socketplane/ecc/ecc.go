@@ -160,28 +160,28 @@ type consulBody struct {
 	Value       string `json:"Value,omitempty"`
 }
 
-func Get(store string, key string) (string, int, bool) {
+func Get(store string, key string) ([]byte, int, bool) {
 	url := CONSUL_KV_BASE_URL + store + "/" + key
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Printf("Error (%v) in Get for %s\n", err, url)
-		return "", 0, false
+		return nil, 0, false
 	}
 	defer resp.Body.Close()
 	log.Printf("Status of Get %s %d for %s", resp.Status, resp.StatusCode, url)
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return "", 0, false
+		return nil, 0, false
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		var jsonBody []consulBody
 		body, err := ioutil.ReadAll(resp.Body)
 		err = json.Unmarshal(body, &jsonBody)
 		existingValue, err := b64.StdEncoding.DecodeString(jsonBody[0].Value)
 		if err != nil {
-			return "", jsonBody[0].ModifyIndex, false
+			return nil, jsonBody[0].ModifyIndex, false
 		}
-		return string(existingValue[:]), jsonBody[0].ModifyIndex, true
+		return existingValue, jsonBody[0].ModifyIndex, true
 	} else {
-		return "", 0, false
+		return nil, 0, false
 	}
 }
 
@@ -193,14 +193,14 @@ const (
 
 type eccerror int
 
-func Put(store string, key string, value string, oldValue string) eccerror {
+func Put(store string, key string, value []byte, oldValue []byte) eccerror {
 	existingValue, casIndex, ok := Get(store, key)
-	if ok && oldValue != existingValue {
+	if ok && !bytes.Equal(oldValue, existingValue) {
 		return OUTDATED
 	}
 	url := fmt.Sprintf("%s%s/%s?cas=%d", CONSUL_KV_BASE_URL, store, key, casIndex)
 	log.Printf("Updating KV pair for %s %s %s %d", url, key, value, casIndex)
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(value)))
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(value))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

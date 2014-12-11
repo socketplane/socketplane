@@ -22,33 +22,28 @@ func Init(bindInterface string, bootstrap bool) error {
 }
 
 func GetAnAddress(subnet string) (string, error) {
-	address, _, err := net.ParseCIDR(subnet)
-	address = address.To4()
-	if err != nil || address == nil {
-		log.Printf("%v is not an IPv4 address\n", address)
-		return "", errors.New(subnet + "is not an IPv4 address")
-	}
-	addrVal, _, ok := ecc.Get(dataStore, subnet)
-	currVal := addrVal
+	addrArray, _, ok := ecc.Get(dataStore, subnet)
+	currVal := make([]byte, len(addrArray))
+	copy(currVal, addrArray)
 	if !ok {
+		var err error
+		address, _, err := net.ParseCIDR(subnet)
+		address = address.To4()
+		if err != nil || address == nil {
+			log.Printf("%v is not an IPv4 address\n", address)
+			return "", errors.New(subnet + "is not an IPv4 address")
+		}
 		address[3] = 1
-		addrVal = address.String()
+		addrArray = []byte(address)
 	}
-	address = net.ParseIP(string(addrVal[:]))
-	if err != nil || address.To4() == nil {
-		log.Printf("%s is not an IPv4 address : %v\n", address.String(), err)
-		return "", errors.New("Not a valid Ipv4 address " + address.String())
-	}
-	address = address.To4()
-	address[3] += 1
-	addrVal = address.String()
+	addrArray[3] += 1
 
-	eccerr := ecc.Put(dataStore, subnet, addrVal, currVal)
+	eccerr := ecc.Put(dataStore, subnet, addrArray, currVal)
 	if eccerr != ecc.OK {
 		return GetAnAddress(subnet)
 	}
-	address[3] -= 1
-	return address.String(), nil
+	addrArray[3] -= 1
+	return net.IP(addrArray).String(), nil
 }
 
 func Join(address string) error {

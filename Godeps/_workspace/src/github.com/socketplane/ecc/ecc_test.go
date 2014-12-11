@@ -1,6 +1,9 @@
 package ecc
 
-import "testing"
+import (
+	"testing"
+)
+import "bytes"
 
 func TestStart(t *testing.T) {
 	err := Start(true, true, "", "data-dir")
@@ -19,7 +22,7 @@ func TestJoin(t *testing.T) {
 func TestGet(t *testing.T) {
 	existingValue, _, ok := Get("ipam", "test")
 	if ok {
-		t.Fatal("Please cleanup the existing database and restart the test :", existingValue)
+		t.Fatal("Please cleanup the existing database and restart the test :", string(existingValue[:]))
 	}
 }
 
@@ -29,13 +32,13 @@ func TestPut(t *testing.T) {
 		t.Fatal("Please cleanup the existing database and restart the test")
 	}
 
-	eccerr := Put("ipam", "test", "192.168.56.1", existingValue)
+	eccerr := Put("ipam", "test", []byte("192.168.56.1"), existingValue)
 	if eccerr != OK {
 		t.Fatal("Error putting value into ipam store")
 	}
 
 	// Test with Old existingValue
-	eccerr = Put("ipam", "test", "192.168.56.1", existingValue)
+	eccerr = Put("ipam", "test", []byte("192.168.56.1"), existingValue)
 	if eccerr == OK {
 		t.Fatal("Put must fail if the existingValue is NOT in sync with the db")
 	}
@@ -46,7 +49,7 @@ func TestPut(t *testing.T) {
 		t.Fatal("test key is missing in ipam store")
 	}
 
-	eccerr = Put("ipam", "test", "192.168.56.2", existingValue)
+	eccerr = Put("ipam", "test", []byte("192.168.56.2"), existingValue)
 	if eccerr != OK {
 		t.Error("Error putting value into ipam store")
 	}
@@ -55,7 +58,7 @@ func TestPut(t *testing.T) {
 	if !ok {
 		t.Fatal("test key is missing in ipam store")
 	}
-	if existingValue != "192.168.56.2" {
+	if !bytes.Equal(existingValue, []byte("192.168.56.2")) {
 		t.Fatal("Value for test key is not updated in DB")
 	}
 }

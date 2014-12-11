@@ -132,7 +132,7 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",
-			"Rev": "825f2fe64961b161f0a0fcce56aeaad7735c5a0d"
+			"Rev": "a0e57fbbc5d2a770b69176da63eaf9fbb5137a60"
 		},
 		{
 			"ImportPath": "github.com/socketplane/libovsdb",
