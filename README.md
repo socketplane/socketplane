@@ -1,4 +1,4 @@
-agent
-=====
+socketplane
+===========
 
 SocketPlane Agent
