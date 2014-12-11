@@ -41,8 +41,44 @@ func Request(subnet net.IPNet) net.IP {
 	return getIP(subnet, pos)
 }
 
-func Release(address net.IPNet) bool {
+func Release(address net.IP, subnet net.IPNet) bool {
+	addrArray, _, ok := ecc.Get(dataStore, subnet.String())
+	currVal := make([]byte, len(addrArray))
+	copy(currVal, addrArray)
+	if !ok {
+		return false
+	}
+	pos := getBitPosition(address, subnet)
+	clearBit(addrArray, pos-1)
+	eccerr := ecc.Put(dataStore, subnet.String(), addrArray, currVal)
+	if eccerr == ecc.OUTDATED {
+		return Release(address, subnet)
+	}
 	return true
+}
+
+func getBitPosition(address net.IP, subnet net.IPNet) uint {
+	mask, size := subnet.Mask.Size()
+	if address.To4() != nil {
+		address = address.To4()
+	}
+	tb := size / 8
+	byteCount := (size - mask) / 8
+	bitCount := (size - mask) % 8
+	pos := uint(0)
+
+	for i := 0; i <= byteCount; i++ {
+		maskLen := 0xFF
+		if i == byteCount {
+			if bitCount != 0 {
+				maskLen = int(math.Pow(2, float64(bitCount))) - 1
+			} else {
+				maskLen = 0
+			}
+		}
+		pos += (uint(address[tb-i-1]) & uint(0xFF&maskLen)) << uint(8*i)
+	}
+	return pos
 }
 
 // Given Subnet of interest and free bit position, this method returns the corresponding ip address
