@@ -5,18 +5,23 @@ command_exists() {
     command -v "$@" > /dev/null 2>&1
 }
 
-verify_docker_sh() {
-    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
-        (set -x $dk '"Docker has been installed"') || true
-        echo "docker appears to already be installed and running.."
-        else
-            echo "Docker is not installed, downloading and installing now"
-            wget -qO- https://get.docker.com/ | sh
-    fi
-}
-
 verify_ovs() {
-    OS=$(lsb_release -is)
+    OS=Not_Linux
+    RELEASE=Not_Linux
+    CODENAME=Not_Linux
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
+    if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
+    if which lsb_release &> /dev/null; then
+        OS=$(lsb_release -is)
+        RELEASE=$(lsb_release -rs)
+        CODENAME=$(lsb_release -cs)
+    fi
+    echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
+    if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
+        echo "Supported operating systems are: Ubuntu, Debian and Fedora."
+        exit 1
+    fi
     if ! which ovsdb-server &> /dev/null || ! which ovs-vswitchd &> /dev/null; then
         install_ovs
     fi
@@ -38,9 +43,9 @@ verify_ovs() {
 }
 
 install_ovs() {
-    OS=Unknown
-    RELEASE=Unknown
-    CODENAME=Unknown
+    OS=Not_Linux
+    RELEASE=Not_Linux
+    CODENAME=Not_Linux
     ARCH=$(uname -m)
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
     if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
@@ -89,6 +94,16 @@ remove_ovs() {
     echo "OVS has been removed."
 }
 
+verify_docker_sh() {
+    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
+        (set -x $dk '"Docker has been installed"') || true
+        echo "docker appears to already be installed and running.."
+        else
+            echo "Docker is not installed, downloading and installing now"
+            wget -qO- https://get.docker.com/ | sh
+    fi
+}
+
 container_run() {
     echo "Downloading and starting the SocketPlane container"
     # The following will prompt for:
@@ -97,8 +112,7 @@ container_run() {
     # password
     # email
     sudo docker login
-    sudo docker pull  socketplane/socketplane
-    docker run -itd -et=host socketplane/socketplane
+    sudo docker run -itd --net=host socketplane/socketplane
 }
 
 usage() {
@@ -110,8 +124,8 @@ EOF
 case "$1" in
 	install)
 	    echo "Installing StackPlane Software.."
-        verify_docker_sh
 	    verify_ovs
+        verify_docker_sh
 	    container_run
 		 echo "Done."
 		;;
