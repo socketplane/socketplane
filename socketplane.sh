@@ -6,9 +6,9 @@ command_exists() {
 }
 
 verify_ovs() {
-    OS=Not_Linux
-    RELEASE=Not_Linux
-    CODENAME=Not_Linux
+    OS=NOT_LINUX
+    RELEASE=NOT_LINUX
+    CODENAME=NOT_LINUX
     ARCH=$(uname -m)
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
     if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
@@ -22,12 +22,15 @@ verify_ovs() {
         echo "Supported operating systems are: Ubuntu, Debian and Fedora."
         exit 1
     fi
-    if ! which ovsdb-server &> /dev/null || ! which ovs-vswitchd &> /dev/null; then
-        install_ovs
-    fi
+    if ! `which ovsdb-server &> /dev/null && which ovs-vswitchd &> /dev/null`; then
+	    echo "ovsdb-server and ovs-vswitchd were found, checking the processes next.."
+	else
+	    echo "OVS was not found in the current path, installing now.."
+	    install_ovs
+	fi
     SWPID=$(ps aux | grep ovs-vswitchd | grep -v grep | awk '{ print $2 }')
     DBPID=$(ps aux | grep ovsdb-server | grep -v grep | awk '{ print $2 }')
-    if [ -z "$SWPID" ] || [ -z "$DBPID" ]; then
+    if [ -z "$SWPID" ] && [ -z "$DBPID" ]; then
         echo "OVS is installed but not running, attempting to start the service.."
 	    if echo $OS | egrep 'Ubuntu'; then
             sudo /etc/init.d/openvswitch-switch start
@@ -43,9 +46,9 @@ verify_ovs() {
 }
 
 install_ovs() {
-    OS=Not_Linux
-    RELEASE=Not_Linux
-    CODENAME=Not_Linux
+    OS=NOT_LINUX
+    RELEASE=NOT_LINUX
+    CODENAME=NOT_LINUX
     ARCH=$(uname -m)
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
     if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
@@ -84,20 +87,38 @@ install_ovs() {
 }
 
 remove_ovs() {
-    pkgs=$('dpkg --get-selections | grep openvswitch | awk "{ print $1;}"')
-    apt-get remove
-    echo "Removing existing Open vSwitch packages:"
-    echo $pkgs
-    if ! $remove $pkgs; then
-        echo "Not all packages removed correctly"
+    OS=NOT_LINUX
+    RELEASE=NOT_LINUX
+    CODENAME=NOT_LINUX
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
+    if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
+    if which lsb_release &> /dev/null; then
+        OS=$(lsb_release -is)
+        RELEASE=$(lsb_release -rs)
+        CODENAME=$(lsb_release -cs)
     fi
-    echo "OVS has been removed."
+    echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
+    if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
+        echo "Supported operating systems are: Ubuntu, Debian and Fedora."
+        exit 1
+    fi
+    echo "Removing existing Open vSwitch packages:"
+    sudo apt-get remove -y openvswitch-switch openvswitch-common
+}
+
+stop_all_images() {
+    for IMAGE_ID in $(docker ps | grep socketplane/socketplane | awk '{ print $1; }')
+        do
+        echo "Removing socketplane image: $IMAGE_ID"
+        docker stop $IMAGE_ID
+    done
 }
 
 verify_docker_sh() {
     if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
         (set -x $dk '"Docker has been installed"') || true
-        echo "docker appears to already be installed and running.."
+        echo "Docker appears to already be installed and running.."
         else
             echo "Docker is not installed, downloading and installing now"
             wget -qO- https://get.docker.com/ | sh
@@ -132,6 +153,7 @@ case "$1" in
 	uninstall)
 	    echo "Removing StackPlane Software.."
 		remove_ovs
+        stop_all_images
 		;;
 	*)
 	cat << EOF
