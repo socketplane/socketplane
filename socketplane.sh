@@ -110,8 +110,8 @@ EOF
 case "$1" in
 	install)
 	    echo "Installing StackPlane Software.."
-#        verify_docker_sh
-#	    verify_ovs
+        verify_docker_sh
+	    verify_ovs
 	    container_run
 		 echo "Done."
 		;;
