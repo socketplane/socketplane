@@ -138,7 +138,18 @@ container_run() {
 
 usage() {
 cat << EOF
-usage: $0 options
+usage: $0 <command>
+
+Install and run SocketPlane. This will install various packages
+from the distributions default repositories if not already installed,
+including open vswitch, docker and the socketplane control image from
+dockerhub.
+
+COMMANDS:
+    socketplane help              Help and usage
+    socketplane install           Install SocketPlane
+    socketplane uninstall         Remove Socketplane installation and dependencies
+
 EOF
 }
 
@@ -156,19 +167,6 @@ case "$1" in
         stop_all_images
 		;;
 	*)
-	cat << EOF
-usage: $0 options
-
-Install and run SocketPlane. This will install various packages
-from the distributions default repositories if not already installed,
-including open vswitch, docker and the socketplane control image from
-dockerhub.
-
-OPTIONS:
-    socketplane help              Help and usage
-    socketplane install           Install SocketPlane
-    socketplane uninstall         Remove Socketplane installation and dependencies
-
-EOF
+	   usage
 esac
 exit
