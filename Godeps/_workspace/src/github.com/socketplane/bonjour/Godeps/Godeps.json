@@ -7,6 +7,10 @@
 			"Rev": "dc30c7cd4ed2fc8af73d49da4ee285404958b8bd"
 		},
 		{
+			"ImportPath": "github.com/socketplane/go-fastping",
+			"Rev": "61a6ac4ac4836bb4ec547d916998371c85ee8e88"
+		},
+		{
 			"ImportPath": "golang.org/x/net/internal/iana",
 			"Comment": "null-223",
 			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"

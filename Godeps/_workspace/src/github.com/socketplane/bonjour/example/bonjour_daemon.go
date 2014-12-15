@@ -17,21 +17,23 @@ func main() {
 		intfName = os.Args[1]
 	}
 	b := bonjour.Bonjour{
-		ServiceName:     DOCKER_CLUSTER_SERVICE,
-		ServiceDomain:   DOCKER_CLUSTER_DOMAIN,
-		ServicePort:     9999,
-		InterfaceName:   intfName,
-		OnMemberHello:   newMember,
-		OnMemberGoodBye: removeMember,
+		ServiceName:   DOCKER_CLUSTER_SERVICE,
+		ServiceDomain: DOCKER_CLUSTER_DOMAIN,
+		ServicePort:   9999,
+		InterfaceName: intfName,
+		BindToIntf:    true,
+		Notify:        notify{},
 	}
 	b.Start()
 
 	select {}
 }
 
-func newMember(addr net.IP) {
+type notify struct{}
+
+func (n notify) NewMember(addr net.IP) {
 	fmt.Println("New Member Added : ", addr)
 }
-func removeMember(addr net.IP) {
+func (n notify) RemoveMember(addr net.IP) {
 	fmt.Println("Member Left : ", addr)
 }

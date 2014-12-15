@@ -43,7 +43,8 @@ var (
 
 // Register a service by given arguments. This call will take the system's hostname
 // and lookup IP by that hostname.
-func Register(instance, service, domain string, port int, text []string, iface *net.Interface) (chan<- bool, error) {
+func Register(instance, service, domain string, port int, text []string, iface *net.Interface,
+	bindToIntf bool) (chan<- bool, error) {
 	entry := NewServiceEntry(instance, service, domain)
 	entry.Port = port
 	entry.Text = text
@@ -69,6 +70,10 @@ func Register(instance, service, domain string, port int, text []string, iface *
 		}
 	}
 	entry.HostName = fmt.Sprintf("%s.", trimDot(entry.HostName))
+
+	if iface == nil && bindToIntf {
+		iface = InterfaceToBind()
+	}
 
 	if iface == nil {
 		addrs, err := net.LookupIP(entry.HostName)

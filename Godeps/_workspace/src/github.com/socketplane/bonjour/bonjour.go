@@ -7,13 +7,18 @@ import (
 	"time"
 )
 
+type BonjourNotify interface {
+	NewMember(net.IP)
+	RemoveMember(net.IP)
+}
+
 type Bonjour struct {
-	ServiceName     string
-	ServiceDomain   string
-	ServicePort     int
-	InterfaceName   string
-	OnMemberHello   func(net.IP)
-	OnMemberGoodBye func(net.IP)
+	ServiceName   string
+	ServiceDomain string
+	ServicePort   int
+	InterfaceName string
+	BindToIntf    bool
+	Notify        BonjourNotify
 }
 
 type cacheEntry struct {
@@ -33,15 +38,15 @@ func (b Bonjour) publish() {
 		if ifName != "" {
 			iface, err = net.InterfaceByName(ifName)
 			if err != nil {
-				log.Fatalln(err.Error())
+				log.Println(err.Error())
 			}
 		}
 		instance, err := os.Hostname()
 		_, err = Register(instance, b.ServiceName,
 			b.ServiceDomain, b.ServicePort,
-			[]string{"txtv=1", "key1=val1", "key2=val2"}, iface)
+			[]string{"txtv=1", "key1=val1", "key2=val2"}, iface, b.BindToIntf)
 		if err != nil {
-			log.Fatalln(err.Error())
+			log.Println(err.Error())
 		}
 		time.Sleep(sleeper)
 	}
@@ -72,15 +77,15 @@ func (b Bonjour) resolve(resolver *Resolver, results chan *ServiceEntry) {
 				if _, ok := dnsCache[e.AddrIPv4.String()]; !ok {
 					log.Printf("New Bonjour Member : %s, %s, %s, %s",
 						e.Instance, e.Service, e.Domain, e.AddrIPv4)
-					if b.OnMemberHello != nil {
-						b.OnMemberHello(e.AddrIPv4)
+					if b.Notify != nil {
+						b.Notify.NewMember(e.AddrIPv4)
 					}
 				}
 				dnsCache[e.AddrIPv4.String()] = cacheEntry{e, time.Now()}
 			} else {
 				log.Printf("Bonjour Member Gone : %s, %s, %s, %s", e.Instance, e.Service, e.Domain, e.AddrIPv4)
-				if b.OnMemberGoodBye != nil {
-					b.OnMemberGoodBye(e.AddrIPv4)
+				if b.Notify != nil {
+					b.Notify.RemoveMember(e.AddrIPv4)
 				}
 				delete(dnsCache, e.AddrIPv4.String())
 			}
@@ -101,13 +106,39 @@ func isMyAddress(address string) bool {
 	return false
 }
 
+func InterfaceToBind() *net.Interface {
+	var iface *net.Interface = nil
+	ifaces, err := net.Interfaces()
+	if err == nil {
+	BindIntf:
+		for _, bIntf := range ifaces {
+			addrs, err := bIntf.Addrs()
+			if err != nil {
+				continue
+			}
+			for i := 0; i < len(addrs); i++ {
+				ip, _, err := net.ParseCIDR(addrs[i].String())
+				if err == nil && ip.To4() != nil {
+					ret, err := echo("224.0.0.1", &ip)
+					if err == nil && ret == ECHO_REPLY {
+						iface = &bIntf
+						break BindIntf
+					}
+				}
+				// TODO : Handle IPv6
+			}
+		}
+	}
+	return iface
+}
+
 func (b Bonjour) keepAlive(resolver *Resolver) {
 	sleeper := time.Second * 30
 	for {
 		for key, e := range dnsCache {
 			if time.Now().Sub(e.lastSeen) > sleeper*2 {
-				if b.OnMemberGoodBye != nil {
-					b.OnMemberGoodBye(net.ParseIP(key))
+				if b.Notify != nil {
+					b.Notify.RemoveMember(net.ParseIP(key))
 				}
 				delete(dnsCache, key)
 				log.Println("Bonjour Member timed out : ", key)
