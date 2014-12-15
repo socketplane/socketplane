@@ -142,15 +142,11 @@ func (c *Client) readRequest(req *Request) error {
 		argv = argv.Elem()
 	}
 
-	log.Println("Request Method being handled ", req.Method, " seq", req.Seq)
-
 	// Invoke the method, providing a new value for the reply.
 	replyv := reflect.New(method.replyType.Elem())
 
 	// Call handler function.
 	go func(req Request) {
-		log.Println("Request Method being handled ", req.Method, " seq", req.Seq)
-
 		returnValues := method.fn.Call([]reflect.Value{reflect.ValueOf(c), argv, replyv})
 
 		// Do not send response if request is a notification.

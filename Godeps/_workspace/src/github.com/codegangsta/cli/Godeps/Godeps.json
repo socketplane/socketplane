@@ -1,0 +1,5 @@
+{
+	"ImportPath": "github.com/codegangsta/cli",
+	"GoVersion": "go1.4",
+	"Deps": []
+}

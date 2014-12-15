@@ -1,9 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.2.1",
-	"Packages": [
-		"./..."
-	],
+	"GoVersion": "go1.3.3",
 	"Deps": [
 		{
 			"ImportPath": "github.com/armon/circbuf",
@@ -32,7 +29,12 @@
 		},
 		{
 			"ImportPath": "github.com/cenkalti/rpc2",
-			"Rev": "8e2be6d2c8ad7089dee2e055be9b7d2af407e667"
+			"Rev": "44d0d95e4f529a0fe230c90d2126bd597c61148c"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-30-g229729f",
+			"Rev": "229729fae6f51f993fa7cc957beca960821f988a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/acl",
