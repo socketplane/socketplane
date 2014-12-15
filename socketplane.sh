@@ -104,15 +104,18 @@ remove_ovs() {
         exit 1
     fi
     echo "Removing existing Open vSwitch packages:"
-    sudo apt-get remove -y openvswitch-switch openvswitch-common
+        sudo apt-get remove -y openvswitch-switch  openvswitch-datapath-dkms
 }
 
 stop_all_images() {
-    for IMAGE_ID in $(docker ps | grep socketplane/socketplane | awk '{ print $1; }')
+    echo "Stopping existing Docker image:"
+    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
+      for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }')
         do
         echo "Removing socketplane image: $IMAGE_ID"
-        docker stop $IMAGE_ID
-    done
+        sudo docker stop $IMAGE_ID
+      done
+    fi
 }
 
 verify_docker_sh() {
