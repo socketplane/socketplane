@@ -6,6 +6,7 @@ import (
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/socketplane/socketplane/ipam"
+	"github.com/socketplane/socketplane/ovs"
 )
 
 type Daemon struct {
@@ -26,6 +27,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		bindInterface = ctx.String("iface")
 	}
 	go ServeAPI(d)
+	go ovs.CreateBridge("")
 	go Bonjour(bindInterface)
 	ipam.Init(bindInterface, ctx.Bool("bootstrap"))
 	c := make(chan os.Signal, 1)

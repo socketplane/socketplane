@@ -6,6 +6,7 @@ import (
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 	"github.com/socketplane/socketplane/ipam"
+	"github.com/socketplane/socketplane/ovs"
 )
 
 const DOCKER_CLUSTER_SERVICE = "_docker._cluster"
@@ -29,7 +30,9 @@ type notify struct{}
 func (n notify) NewMember(addr net.IP) {
 	log.Println("New Member Added : ", addr)
 	ipam.Join(addr.String())
+	ovs.AddPeer(addr.String())
 }
 func (n notify) RemoveMember(addr net.IP) {
 	log.Println("Member Left : ", addr)
+	ovs.DeletePeer(addr.String())
 }

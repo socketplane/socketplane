@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/socketplane/go-fastping"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/go-fastping"
 )
 
 type response struct {
