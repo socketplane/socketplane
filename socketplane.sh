@@ -24,9 +24,7 @@ get_status() {
       DOCKER_CVER=$(sudo docker version | grep "Client API version:" |  awk '{ print $4 }')
     fi
     OVS_SVER="NOT_INSTALLED"
-    echo "tes1 $OVS_SVER"
     if command_exists ovs-appctl; then
-    echo "tes2 $OVS_SVER"
       OVS_SVER=$(sudo ovs-appctl -V | grep "ovs-" |  awk '{ print $4 }')
     fi
 }
