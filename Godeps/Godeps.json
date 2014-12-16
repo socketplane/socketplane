@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.3.3",
+	"GoVersion": "go1.2.1",
 	"Packages": [
 		"./..."
 	],
@@ -38,6 +38,11 @@
 			"ImportPath": "github.com/codegangsta/cli",
 			"Comment": "1.2.0-30-g229729f",
 			"Rev": "229729fae6f51f993fa7cc957beca960821f988a"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/netlink",
+			"Comment": "v0.1.1",
+			"Rev": "4b0a84485d315a53a792687b2f49dba3e6e3d9c6"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -146,6 +151,10 @@
 		{
 			"ImportPath": "github.com/socketplane/ecc",
 			"Rev": "a0e57fbbc5d2a770b69176da63eaf9fbb5137a60"
+		},
+		{
+			"ImportPath": "github.com/socketplane/go-fastping",
+			"Rev": "61a6ac4ac4836bb4ec547d916998371c85ee8e88"
 		},
 		{
 			"ImportPath": "github.com/socketplane/libovsdb",
