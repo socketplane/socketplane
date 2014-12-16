@@ -12,7 +12,7 @@ info:
   version: "0.0.1"
 
 # the domain of the service
-host: localhost:9111
+host: localhost:6547
 
 # array of all schemes that your API supports
 schemes:
@@ -23,6 +23,37 @@ basePath: /v0
 produces:
   - application/json
 paths:
+  /configuration:
+    get:
+      summary: Configuration
+      description: |
+        Returns the current configuration options
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Current configuration
+          schema:
+            $ref: '#/definitions/Configuration'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+      post:
+        summary: Configuration
+        description: |
+          Sets the configuration options
+        tags:
+          - Configuration
+        responses:
+          '200':
+            description: Current configuration
+            schema:
+              $ref: '#/definitions/Configuration'
+          default:
+            description: Unexpected error
+            schema:
+              $ref: '#/definitions/Error'
   /connections:
     get:
       summary: Connections
@@ -107,6 +138,17 @@ definitions:
       ovs_port_id:
         type: string
         description: The name of the Open vSwitch port created for this container
+  Configuration:
+    properties:
+       bridge_ip:
+        type: string
+        description: IP Address of the Open vSwitch Bridge
+       bridge_name:
+        type: string
+        description: Name of the Open vSwitch bridge
+       bridge_cidr:
+        type: string
+        description: CIDR used when allocating addresses for containers attached to the Open vSwitch bridge
   Error:
     properties:
       code:

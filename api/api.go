@@ -15,6 +15,12 @@ type Response struct {
 	Message string
 }
 
+type Configuration struct {
+	BridgeIP   string `json:"bridge_ip"`
+	BridgeName string `json:"bridge_name"`
+	BridgeCIDR string `json:"bridge_cidr"`
+}
+
 type Connection struct {
 	ConnectionID  string `json:"connection_id"`
 	ContainerID   string `json:"container_id"`
@@ -28,12 +34,14 @@ func Listen() {
 	r := mux.NewRouter()
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
+			"/configuration":       getConfiguration,
 			"/connections":         getConnections,
 			"/connections/{id:.*}": getConnection,
 		},
 
 		"POST": {
-			"/connections": createConnection,
+			"/configuration": setConfiguration,
+			"/connections":   createConnection,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
@@ -52,6 +60,14 @@ func Listen() {
 		Handler: r,
 	}
 	server.ListenAndServe()
+}
+
+func getConfiguration(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+func setConfiguration(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 func getConnections(w http.ResponseWriter, r *http.Request) {
