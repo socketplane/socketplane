@@ -19,7 +19,7 @@ schemes:
   - http
 # will be prefixed to all paths
 
-basePath: /v0
+basePath: /v0.1
 produces:
   - application/json
 paths:
@@ -39,21 +39,28 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
-      post:
-        summary: Configuration
-        description: |
-          Sets the configuration options
-        tags:
-          - Configuration
-        responses:
-          '200':
-            description: Current configuration
-            schema:
-              $ref: '#/definitions/Configuration'
-          default:
-            description: Unexpected error
-            schema:
-              $ref: '#/definitions/Error'
+    post:
+      summary: Configuration
+      description: |
+        Sets the configuration options
+      tags:
+        - Configuration
+      parameters:
+        - in: body
+          name: body
+          description: Configuration object
+          required: true
+          schema:
+            $ref: "#/definitions/Configuration"
+      responses:
+        '200':
+          description: Current configuration
+          schema:
+            $ref: '#/definitions/Configuration'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /connections:
     get:
       summary: Connections
@@ -121,7 +128,7 @@ paths:
         default:
           description: Unexpected error
           schema:
-            $ref: Error
+            $ref: '#/definitions/Error'
 
 definitions:
   Connection:
@@ -155,6 +162,4 @@ definitions:
         type: integer
         format: int32
       message:
-        type: string
-      fields:
         type: string
