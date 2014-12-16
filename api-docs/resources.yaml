@@ -1,0 +1,165 @@
+swagger: '2.0'
+info:
+  title: SocketPlane API
+  description: Software Defined Networking for Docker
+  contact:
+    name: "Support"
+    url: http://socketplane.io/support
+    email: support@socketplane.io
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+  version: "0.0.1"
+
+# the domain of the service
+host: localhost:6547
+
+# array of all schemes that your API supports
+schemes:
+  - http
+# will be prefixed to all paths
+
+basePath: /v0.1
+produces:
+  - application/json
+paths:
+  /configuration:
+    get:
+      summary: Configuration
+      description: |
+        Returns the current configuration options
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Current configuration
+          schema:
+            $ref: '#/definitions/Configuration'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      summary: Configuration
+      description: |
+        Sets the configuration options
+      tags:
+        - Configuration
+      parameters:
+        - in: body
+          name: body
+          description: Configuration object
+          required: true
+          schema:
+            $ref: "#/definitions/Configuration"
+      responses:
+        '200':
+          description: Current configuration
+          schema:
+            $ref: '#/definitions/Configuration'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+  /connections:
+    get:
+      summary: Connections
+      description: |
+        Returns information about all containers connected to the host
+      tags:
+        - Connections
+      responses:
+        '200':
+          description: An array of connections
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Connection'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    post:
+      summary: Connections
+      description: |
+        Connects a container to the host
+      tags:
+        - Connections
+      responses:
+        '201':
+          description: A new connection
+          schema:
+            $ref: '#/definitions/Connection'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: Error
+  /connections/{connectionId}:
+    parameters:
+        - in: path
+          name: connectionId
+          description: ID of pet that needs to be fetched
+          required: true
+          type: string
+    get:
+      summary: Connection
+      description: |
+        Returns information abaout a specific container connection
+      tags:
+        - Connections
+      responses:
+        '200':
+          description: An array of connections
+          schema:
+            $ref: '#/definitions/Connection'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      summary: Connections
+      description: |
+        Disconnect a specific container
+      tags:
+        - Connections
+      responses:
+        '204':
+          description: A new connection
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+
+definitions:
+  Connection:
+    properties:
+      connection_id:
+        type: string
+        description: Unique identifier representing a specific application container connection
+      container_id:
+        type: string
+        description: Unique identifier of the attached container
+      container_name:
+        type: string
+        description: Name of the container
+      ovs_port_id:
+        type: string
+        description: The name of the Open vSwitch port created for this container
+  Configuration:
+    properties:
+       bridge_ip:
+        type: string
+        description: IP Address of the Open vSwitch Bridge
+       bridge_name:
+        type: string
+        description: Name of the Open vSwitch bridge
+       bridge_cidr:
+        type: string
+        description: CIDR used when allocating addresses for containers attached to the Open vSwitch bridge
+  Error:
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
