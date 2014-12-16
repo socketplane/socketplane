@@ -27,7 +27,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	}
 	go ServeAPI(d)
 	go Bonjour(bindInterface)
-	ipam.Init(bindInterface, true)
+	ipam.Init(bindInterface, ctx.Bool("bootstrap"))
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {

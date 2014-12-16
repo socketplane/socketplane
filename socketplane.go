@@ -20,6 +20,10 @@ func main() {
 			Value: "auto",
 			Usage: "Name of the interface to bind to. The default is to auto select",
 		},
+		cli.BoolFlag{
+			Name:  "bootstrap",
+			Usage: "Set --bootstrap for the first socketplane instance being started",
+		},
 	}
 	app.Action = d.Run
 	app.Run(os.Args)
