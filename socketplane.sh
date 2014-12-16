@@ -110,6 +110,7 @@ remove_ovs() {
     fi
     echo "Removing existing Open vSwitch packages:"
         sudo apt-get remove -y openvswitch-switch 
+        sudo rm /usr/bin/ovs-appctl
 }
 
 stop_all_images() {
