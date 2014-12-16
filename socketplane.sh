@@ -5,10 +5,10 @@ command_exists() {
     command -v "$@" > /dev/null 2>&1
 }
 
-verify_ovs() {
-    OS=NOT_LINUX
-    RELEASE=NOT_LINUX
-    CODENAME=NOT_LINUX
+get_status() {
+    OS="NOT_LINUX"
+    RELEASE="NOT_LINUX"
+    CODENAME="NOT_LINUX"
     ARCH=$(uname -m)
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
     if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
@@ -17,6 +17,35 @@ verify_ovs() {
         RELEASE=$(lsb_release -rs)
         CODENAME=$(lsb_release -cs)
     fi
+    DOCKER_SVER="NOT_INSTALLED"
+    DOCKER_CVER="NOT_INSTALLED"
+    if command_exists docker || command_exists lxc-docker; then
+      DOCKER_SVER=$(sudo docker version | grep "Server version:" |  awk '{ print $3 }')
+      DOCKER_CVER=$(sudo docker version | grep "Client API version:" |  awk '{ print $4 }')
+    fi
+    OVS_SVER="NOT_INSTALLED"
+    echo "tes1 $OVS_SVER"
+    if command_exists ovs-appctl; then
+    echo "tes2 $OVS_SVER"
+      OVS_SVER=$(sudo ovs-appctl -V | grep "ovs-" |  awk '{ print $4 }')
+    fi
+}
+show_reqs() {
+    echo "Socketplane  Docker Host Requirnments:"
+    echo ".. Openvswitch Environment:"
+    echo ".... Archicture:              amd64 or i386"
+    echo "....   Current:               $ARCH"
+    echo ".... Operting System:         Ubuntu, Debian and Fedora"
+    echo "....   Current:               $OS"
+    echo ".... Openvswitch Version:     2.1 or higher"
+    echo "....   Current:               $OVS_SVER"
+    echo ".. Docker Environment:"
+    echo ".... Docker Server Version:   1.4 or higher"
+    echo "....   Current:               $DOCKER_SVER"
+    echo ".... Docker Cleint Version:   1.16 or higher"
+    echo "....   Current:               $DOCKER_SVER"
+}
+verify_ovs() {
     echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
     if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
         echo "Supported operating systems are: Ubuntu, Debian and Fedora."
@@ -46,17 +75,6 @@ verify_ovs() {
 }
 
 install_ovs() {
-    OS=NOT_LINUX
-    RELEASE=NOT_LINUX
-    CODENAME=NOT_LINUX
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
-    if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
-    if which lsb_release &> /dev/null; then
-        OS=$(lsb_release -is)
-        RELEASE=$(lsb_release -rs)
-        CODENAME=$(lsb_release -cs)
-    fi
     echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
     if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
         echo "Supported operating systems are: Ubuntu, Debian and Fedora."
@@ -66,9 +84,9 @@ install_ovs() {
     grep Ubuntu /etc/lsb-release &> /dev/null && OS="Ubuntu"
     if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
         install='sudo apt-get -y install '
-        $install openvswitch-switch  openvswitch-datapath-dkms
+        $install openvswitch-switch 
         sleep 3
-        ovs-vsctl set-manager ptcp:6640
+        sudo ovs-vsctl set-manager ptcp:6640
         if ! which lsb_release &> /dev/null; then
             $install lsb-release
         fi
@@ -78,7 +96,7 @@ install_ovs() {
         install='sudo yum -y install '
         $install openvswitch
         sleep 3
-        ovs-vsctl set-manager ptcp:6640
+        sudo ovs-vsctl set-manager ptcp:6640
         if ! which lsb_release &> /dev/null; then
             $install redhat-lsb-core
         fi
@@ -87,24 +105,13 @@ install_ovs() {
 }
 
 remove_ovs() {
-    OS=NOT_LINUX
-    RELEASE=NOT_LINUX
-    CODENAME=NOT_LINUX
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
-    if [ "$ARCH" = "i686" ]; then ARCH="i386"; fi
-    if which lsb_release &> /dev/null; then
-        OS=$(lsb_release -is)
-        RELEASE=$(lsb_release -rs)
-        CODENAME=$(lsb_release -cs)
-    fi
     echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
     if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
         echo "Supported operating systems are: Ubuntu, Debian and Fedora."
         exit 1
     fi
     echo "Removing existing Open vSwitch packages:"
-        sudo apt-get remove -y openvswitch-switch  openvswitch-datapath-dkms
+        sudo apt-get remove -y openvswitch-switch 
 }
 
 stop_all_images() {
@@ -112,19 +119,29 @@ stop_all_images() {
     if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
       for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }')
         do
-        echo "Removing socketplane image: $IMAGE_ID"
-        sudo docker stop $IMAGE_ID
-      done
+          echo "Removing socketplane image: $IMAGE_ID"
+          sudo docker stop $IMAGE_ID
+        done
     fi
 }
 
 verify_docker_sh() {
+    echo "Detected Docker distribution: $DOCKER_SVER $DOCKER_CVER"
     if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
         (set -x $dk '"Docker has been installed"') || true
         echo "Docker appears to already be installed and running.."
         else
             echo "Docker is not installed, downloading and installing now"
             wget -qO- https://get.docker.com/ | sh
+    fi
+}
+remove_docker() {
+    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
+      for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }')
+        do
+          echo "Removing socketplane image: $IMAGE_ID"
+          sudo docker rm $IMAGE_ID
+        done
     fi
 }
 
@@ -150,8 +167,10 @@ dockerhub.
 
 COMMANDS:
     socketplane help              Help and usage
-    socketplane install           Install SocketPlane
-    socketplane uninstall         Remove Socketplane installation and dependencies
+    socketplane install           Install SocketPlane (installs docker and openvswitch)
+    socketplane uninstall         Remove Socketplane installation 
+    socketplane clean             Remove Socketplane installation and dependencies (docker and openvswitch)
+    socketplane show_reqs         List all socketplane installation requirnments 
 
 EOF
 }
@@ -159,16 +178,27 @@ EOF
 case "$1" in
 	install)
 	    echo "Installing StackPlane Software.."
+            get_status
 	    verify_ovs
-        verify_docker_sh
+            verify_docker_sh
 	    container_run
-		 echo "Done."
-		;;
+  	    echo "Done."
+       	    ;;
 	uninstall)
 	    echo "Removing StackPlane Software.."
-		remove_ovs
-        stop_all_images
-		;;
+            stop_all_images
+            ;;
+	clean)
+	    echo "Removing StackPlane Dependencies.."
+            get_status
+       	    remove_ovs
+            stop_all_images
+            remove_docker
+            ;;
+	show_reqs)
+            get_status
+            show_reqs
+            ;;
 	*)
 	   usage
 esac
