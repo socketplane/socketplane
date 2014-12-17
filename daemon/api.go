@@ -3,8 +3,10 @@ package daemon
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/socketplane/socketplane/ovs"
 )
 
 const API_VERSION string = "/v0.1"
@@ -116,7 +118,26 @@ func getConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 }
 
 func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	if r.Body == nil {
+		return &apiError{http.StatusBadRequest, "Request body is empty"}
+	}
+	cfg := &Connection{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(cfg)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	pid, err := strconv.Atoi(cfg.ContainerPID)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	portName, err := ovs.AddConnection(pid)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	cfg.OvsPortID = portName
+	d.Connections[cfg.ContainerName] = cfg
+	return nil
 }
 
 func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
