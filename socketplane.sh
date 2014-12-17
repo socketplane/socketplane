@@ -1,8 +1,30 @@
-#!/bin/sh
+#!/bin/bash
 # Temporary wrapper for OVS until native Docker integration is available upstream
 
+set -e
+
 command_exists() {
-    command -v "$@" > /dev/null 2>&1
+    hash $@ 2>/dev/null
+}
+
+puts_command() {
+    echo -e "\033[0;32m$@ \033[0m"
+}
+
+puts_step() {
+    echo -e "\033[1;33m-----> $@ \033[0m"
+}
+
+puts_warn() {
+    echo -e "\033[0;31m ! $@ \033[0m"
+}
+
+check_supported_os() {
+    puts_step "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
+    if ! echo $OS | grep -E 'Ubuntu|Debian|Fedora|RedHat' > /dev/null; then
+        puts_warn "Supported operating systems are: Ubuntu, Debian and Fedora."
+        exit 1
+    fi
 }
 
 get_status() {
@@ -19,10 +41,18 @@ get_status() {
         ARCH="i386";
     fi
 
-    if which lsb_release &> /dev/null; then
+    if command_exists lsb_release; then
         OS=$(lsb_release -is)
         RELEASE=$(lsb_release -rs)
         CODENAME=$(lsb_release -cs)
+    elif [ -f /etc/debian_version ]; then
+        OS="Debian"
+        RELEASE="UNDETECTED"
+        CODENAME="UNDETECTED"
+    elif [ -f /etc/redhat-release ]; then
+        OS="RedHat"
+        RELEASE="UNDETECTED"
+        CODENAME="UNDETECTED"
     fi
 
     DOCKER_SVER="NOT_INSTALLED"
@@ -50,122 +80,121 @@ show_reqs() {
     echo ".. Docker Environment:"
     echo ".... Docker Server Version:   1.4 or higher"
     echo "....   Current:               $DOCKER_SVER"
-    echo ".... Docker Cleint Version:   1.16 or higher"
+    echo ".... Docker Client Version:   1.16 or higher"
     echo "....   Current:               $DOCKER_SVER"
 }
 
 verify_ovs() {
-    echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
-    if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
-        echo "Supported operating systems are: Ubuntu, Debian and Fedora."
-        exit 1
-    fi
-    if ! `which ovsdb-server &> /dev/null && which ovs-vswitchd &> /dev/null`; then
-        echo "ovsdb-server and ovs-vswitchd were found, checking the processes next.."
+    if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
+        puts_step "OVS already installed"
     else
-        echo "OVS was not found in the current path, installing now.."
+        puts_warn "OVS was not found in the current path, installing now.."
         install_ovs
     fi
-    SWPID=$(ps aux | grep ovs-vswitchd | grep -v grep | awk '{ print $2 }')
-    DBPID=$(ps aux | grep ovsdb-server | grep -v grep | awk '{ print $2 }')
-    if [ -z "$SWPID" ] && [ -z "$DBPID" ]; then
-        echo "OVS is installed but not running, attempting to start the service.."
-        if echo $OS | egrep 'Ubuntu'; then
-            sudo /etc/init.d/openvswitch-switch start
-        elif echo $OS | egrep 'Debian' &> /dev/null; then
-            sudo /etc/init.d/openvswitch start
-        else echo $OS | egrep 'Fedora' &> /dev/null;
-            sudo sudo systemctl start openvswitch.service
+
+    # Make sure the processes are started
+    if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
+        if $(sudo service openvswitch-switch status | grep "stop"); then
+            sudo service openvswitch-switch start
         fi
-        sleep 1
+    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
+        sudo systemctl start openvswitch.service
     fi
-    echo "OVS is installed and running, setting the OVSDB listener.."
+
+    sleep 1
+    puts_step "Setting OVSDB Listener"
     sudo ovs-vsctl set-manager ptcp:6640
 }
 
 install_ovs() {
-    echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
-    if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
-        echo "Supported operating systems are: Ubuntu, Debian and Fedora."
-        exit 1
-    fi
-    test -e /etc/debian_version && OS="Debian"
-    grep Ubuntu /etc/lsb-release &> /dev/null && OS="Ubuntu"
     if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
-        install='sudo apt-get -y install '
-        $install openvswitch-switch
-        sleep 3
-        sudo ovs-vsctl set-manager ptcp:6640
-        if ! which lsb_release &> /dev/null; then
-            $install lsb-release
-        fi
+        sudo apt-get -y install openvswitch-switch > /dev/null
+    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
+        sudo yum -q -y install openvswitch
+
     fi
-    test -e /etc/fedora-release && OS="Fedora"
-        if [ "$OS" = "Fedora" ]; then
-        install='sudo yum -y install '
-        $install openvswitch
-        sleep 3
-        sudo ovs-vsctl set-manager ptcp:6640
-        if ! which lsb_release &> /dev/null; then
-            $install redhat-lsb-core
-        fi
-    fi
+
+    sleep 3
+    sudo ovs-vsctl set-manager ptcp:6640
     sleep 1
 }
 
 remove_ovs() {
-    echo "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
-    if ! echo $OS | egrep 'Ubuntu|Debian|Fedora'; then
-        echo "Supported operating systems are: Ubuntu, Debian and Fedora."
-        exit 1
-    fi
-    echo "Removing existing Open vSwitch packages:"
-        sudo apt-get remove -y openvswitch-switch
-        sudo rm /usr/bin/ovs-appctl
-}
-
-stop_all_images() {
-    echo "Stopping existing Docker image:"
-    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
-        for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
-            echo "Removing socketplane image: $IMAGE_ID"
-            sudo docker stop $IMAGE_ID
-        done
+    puts_step "Removing existing Open vSwitch packages:"
+    if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
+        sudo apt-get -y remove openvswitch-switch > /dev/null
+    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
+        sudo yum -q -y remove openvswitch
     fi
 }
 
-verify_docker_sh() {
-    echo "Detected Docker distribution: $DOCKER_SVER $DOCKER_CVER"
-    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
-        (set -x $dk '"Docker has been installed"') || true
-        echo "Docker appears to already be installed and running.."
-        else
-            echo "Docker is not installed, downloading and installing now"
-            wget -qO- https://get.docker.com/ | sh
+verify_docker() {
+    if ! command_exists docker; then
+        puts_warn "Docker is not installed. Installing now..."
+        if [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
+            sudo yum -q -y remove docker > /dev/null
+        fi
+        wget -qO- https://get.docker.com/ | sh
     fi
-}
-remove_docker() {
-    if command_exists if command_exists sudo ps -ef | grep docker |awk '{print $2}' && [ -e /var/run/docker.sock ]; then
-        for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
-            echo "Removing socketplane image: $IMAGE_ID"
-            sudo docker rm $IMAGE_ID
-        done
+
+    if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
+        if $(sudo service docker status | grep "stop"); then
+            sudo service docker start
+        fi
+    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
+        sudo sudo systemctl start docker.service
     fi
 }
 
-container_run() {
-    echo "Downloading and starting the SocketPlane container"
+start_socketplane() {
+    puts_step "Starting the SocketPlane container"
+
+    if [ ! -z $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
+        puts_warn "SocketPlane container is already running"
+        return 1
+    fi
+
     # The following will prompt for:
     #------------------------------#
     # userid
     # password
     # email
     sudo docker login
-    sudo docker run -itd --net=host socketplane/socketplane
+    sudo mkdir -p /var/run/socketplane
+    cid=$(sudo docker run -itd --net=host socketplane/socketplane)
+    sudo sh -c 'echo $cid / > /var/run/socketplane/cid'
+}
+
+stop_socketplane() {
+    puts_step "Stopping the SocketPlane container"
+    if ! command_exists docker; then
+        puts_warn "Docker is not installed"
+        exit 1
+    fi
+
+    for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
+        echo "Removing socketplane image: $IMAGE_ID"
+        sudo docker stop $IMAGE_ID > /dev/null
+        sleep 1
+        sudo docker rm $IMAGE_ID > /dev/null
+    done
+}
+
+remove_socketplane() {
+    puts_step "Removing the SocketPlane container image"
+    if ! command_exists docker; then
+        puts_warn "Docker is not installed"
+        exit 1
+    fi
+
+    for IMAGE_ID in $(sudo docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
+        echo "Removing socketplane image: $IMAGE_ID"
+        sudo docker rmi $IMAGE_ID > /dev/null
+    done
 }
 
 usage() {
-cat << EOF
+    cat << EOF
 usage: $0 <command>
 
 Install and run SocketPlane. This will install various packages
@@ -178,33 +207,38 @@ COMMANDS:
     socketplane install           Install SocketPlane (installs docker and openvswitch)
     socketplane uninstall         Remove Socketplane installation
     socketplane clean             Remove Socketplane installation and dependencies (docker and openvswitch)
-    socketplane show_reqs         List all socketplane installation requirnments
+    socketplane show_reqs         List all socketplane installation requirements
 
 EOF
 }
 
 case "$1" in
     install)
-        echo "Installing SocketPlane Software.."
+        puts_command "Installing SocketPlane..."
         get_status
+        check_supported_os
         verify_ovs
-        verify_docker_sh
-        container_run
-        echo "Done."
+        verify_docker
+        start_socketplane
+        puts_step "Done."
         ;;
     uninstall)
-        echo "Removing SocketPlane Software.."
-        stop_all_images
+        puts_command "Uninstalling SocketPlane..."
+        get_status
+        check_supported_os
+        stop_socketplane
         ;;
     clean)
-        echo "Removing SocketPlane Dependencies.."
+        puts_command "Removing SocketPlane and all dependencies..."
         get_status
+        check_supported_os
         remove_ovs
-        stop_all_images
-        remove_docker
+        stop_socketplane
+        remove_socketplane
         ;;
     show_reqs)
         get_status
+        check_supported_os
         show_reqs
         ;;
     *)
