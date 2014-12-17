@@ -58,13 +58,13 @@ get_status() {
     DOCKER_SVER="NOT_INSTALLED"
     DOCKER_CVER="NOT_INSTALLED"
     if command_exists docker || command_exists lxc-docker; then
-        DOCKER_SVER=$(sudo docker version | grep "Server version:" |  awk '{ print $3 }')
-        DOCKER_CVER=$(sudo docker version | grep "Client API version:" |  awk '{ print $4 }')
+        DOCKER_SVER=$(docker version | grep "Server version:" |  awk '{ print $3 }')
+        DOCKER_CVER=$(docker version | grep "Client API version:" |  awk '{ print $4 }')
     fi
 
     OVS_SVER="NOT_INSTALLED"
     if command_exists ovs-appctl; then
-        OVS_SVER=$(sudo ovs-appctl -V | grep "ovs-" |  awk '{ print $4 }')
+        OVS_SVER=$(ovs-appctl -V | grep "ovs-" |  awk '{ print $4 }')
     fi
 }
 
@@ -94,37 +94,37 @@ verify_ovs() {
 
     # Make sure the processes are started
     if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
-        if $(sudo service openvswitch-switch status | grep "stop"); then
-            sudo service openvswitch-switch start
+        if $(service openvswitch-switch status | grep "stop"); then
+            service openvswitch-switch start
         fi
     elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        sudo systemctl start openvswitch.service
+        systemctl start openvswitch.service
     fi
 
     sleep 1
     puts_step "Setting OVSDB Listener"
-    sudo ovs-vsctl set-manager ptcp:6640
+    ovs-vsctl set-manager ptcp:6640
 }
 
 install_ovs() {
     if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
-        sudo apt-get -y install openvswitch-switch > /dev/null
+        apt-get -y install openvswitch-switch > /dev/null
     elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        sudo yum -q -y install openvswitch
-
+        yum -q -y install openvswitch
+        systemctl start openvswitch.service
     fi
 
     sleep 3
-    sudo ovs-vsctl set-manager ptcp:6640
+    ovs-vsctl set-manager ptcp:6640
     sleep 1
 }
 
 remove_ovs() {
     puts_step "Removing existing Open vSwitch packages:"
     if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
-        sudo apt-get -y remove openvswitch-switch > /dev/null
+        apt-get -y remove openvswitch-switch > /dev/null
     elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        sudo yum -q -y remove openvswitch
+        yum -q -y remove openvswitch
     fi
 }
 
@@ -132,24 +132,24 @@ verify_docker() {
     if ! command_exists docker; then
         puts_warn "Docker is not installed. Installing now..."
         if [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-            sudo yum -q -y remove docker > /dev/null
+            yum -q -y remove docker > /dev/null
         fi
         wget -qO- https://get.docker.com/ | sh
     fi
 
     if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
-        if $(sudo service docker status | grep "stop"); then
-            sudo service docker start
+        if $(service docker status | grep "stop"); then
+            service docker start
         fi
     elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        sudo sudo systemctl start docker.service
+        systemctl start docker.service
     fi
 }
 
 start_socketplane() {
     puts_step "Starting the SocketPlane container"
 
-    if [ ! -z $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
+    if [ ! -z $(docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
         puts_warn "SocketPlane container is already running"
         return 1
     fi
@@ -159,10 +159,10 @@ start_socketplane() {
     # userid
     # password
     # email
-    sudo docker login
-    sudo mkdir -p /var/run/socketplane
-    cid=$(sudo docker run -itd --net=host socketplane/socketplane)
-    sudo sh -c 'echo $cid / > /var/run/socketplane/cid'
+    docker login
+    mkdir -p /var/run/socketplane
+    cid=$(docker run -itd --net=host socketplane/socketplane)
+    echo $cid > /var/run/socketplane/cid
 }
 
 stop_socketplane() {
@@ -172,12 +172,13 @@ stop_socketplane() {
         exit 1
     fi
 
-    for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
+    for IMAGE_ID in $(docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
         echo "Removing socketplane image: $IMAGE_ID"
-        sudo docker stop $IMAGE_ID > /dev/null
+        docker stop $IMAGE_ID > /dev/null
         sleep 1
-        sudo docker rm $IMAGE_ID > /dev/null
+        docker rm $IMAGE_ID > /dev/null
     done
+    rm /var/run/socketplane/cid
 }
 
 remove_socketplane() {
@@ -187,10 +188,22 @@ remove_socketplane() {
         exit 1
     fi
 
-    for IMAGE_ID in $(sudo docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
+    for IMAGE_ID in $(docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
         echo "Removing socketplane image: $IMAGE_ID"
-        sudo docker rmi $IMAGE_ID > /dev/null
+        docker rmi $IMAGE_ID > /dev/null
     done
+}
+
+logs() {
+    if [ ! -f /var/run/socketplane/cid ] || [ -z $(cat /var/run/socketplane/cid) ]; then
+        puts_warn "SocketPlane container is not running"
+    fi
+    docker logs $(cat /var/run/socketplane/cid)
+}
+
+run() {
+    args=$(echo 'run -it busybox' | sed 's/^run\s//g')
+    docker run $args
 }
 
 usage() {
@@ -202,15 +215,24 @@ from the distributions default repositories if not already installed,
 including open vswitch, docker and the socketplane control image from
 dockerhub.
 
-COMMANDS:
-    socketplane help              Help and usage
-    socketplane install           Install SocketPlane (installs docker and openvswitch)
-    socketplane uninstall         Remove Socketplane installation
-    socketplane clean             Remove Socketplane installation and dependencies (docker and openvswitch)
-    socketplane show_reqs         List all socketplane installation requirements
+INSTALLATION COMMANDS:
+    socketplane help                Help and usage
+    socketplane install             Install SocketPlane (installs docker and openvswitch)
+    socketplane uninstall           Remove Socketplane installation
+    socketplane clean               Remove Socketplane installation and dependencies (docker and openvswitch)
+    socketplane show_reqs           List all socketplane installation requirements
+
+RUNTIME COMMANDS:
+    socketplane logs                Show SocketPlane container logs
+    socketplane run <args>          Run a container where <args> are the same as "docker run"
 
 EOF
 }
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
 
 case "$1" in
     install)
@@ -220,21 +242,29 @@ case "$1" in
         verify_ovs
         verify_docker
         start_socketplane
-        puts_step "Done."
+        puts_command "Done!!!"
         ;;
     uninstall)
         puts_command "Uninstalling SocketPlane..."
         get_status
         check_supported_os
         stop_socketplane
+        puts_command "Done!!!"
         ;;
     clean)
-        puts_command "Removing SocketPlane and all dependencies..."
+        puts_command "Removing SocketPlane and all it's dependencies..."
         get_status
         check_supported_os
         remove_ovs
         stop_socketplane
         remove_socketplane
+        puts_command "Done!!!"
+        ;;
+    logs)
+        logs
+        ;;
+    run)
+        run $@
         ;;
     show_reqs)
         get_status
