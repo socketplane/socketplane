@@ -161,7 +161,7 @@ start_socketplane() {
     # email
     docker login
     mkdir -p /var/run/socketplane
-    cid=$(docker run -itd --net=host socketplane/socketplane)
+    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
     echo $cid > /var/run/socketplane/cid
 }
 
@@ -202,8 +202,20 @@ logs() {
 }
 
 run() {
-    args=$(echo 'run -it busybox' | sed 's/^run\s//g')
-    docker run $args
+    args=$(echo $@ | sed 's/^run\s//g')
+    $cid=$(docker run $args)
+    $cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
+    $cName=$(docker inspect --format='{{ .Name }}' $cid)
+
+    sudo curl -S -v -X POST http://localhost:6675/v0.1/connections -d '{ "container_id": "$cid", "container_name": "$cName", "container_pid": "$cPid"}'
+
+    # ToDo: grep return JSON to get OVS_Port_Id
+
+    [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
+    [ -f /var/run/netns/$NSPID ] && rm -f /var/run/netns/$NSPID
+    ln -s /proc/$NSPID/ns/net /var/run/netns/$NSPID
+
+    # ToDo: add ovs interface to container
 }
 
 usage() {
