@@ -178,7 +178,7 @@ stop_socketplane() {
         sleep 1
         docker rm $IMAGE_ID > /dev/null
     done
-    rm /var/run/socketplane/cid
+    [ -f /var/run/socketplane/cid ] && rm -f /var/run/socketplane/cid
 }
 
 remove_socketplane() {
