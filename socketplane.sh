@@ -239,14 +239,13 @@ attach() {
     # see: https://docs.docker.com/articles/networking/
 
     [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
-    [ -f /var/run/netns/$cPid ] && rm -f /var/run/netns/$cPid
-    ln -s /proc/$cPid/ns/net /var/run/netns/$cPid
+    [ -f /var/run/netns/$6 ] && rm -f /var/run/netns/$6
+    ln -s /proc/$6/ns/net /var/run/netns/$6
 
     ip link set dev $1 netns $6
-    ip netns exec $6 ip link set dev $1 name eth0
-    ip netns exec $6 ip link set dev eth0 address $4
-    ip netns exec $6 ip link set dev eth0 up
-    ip netns exec $6 ip addr add $2$3 dev eth0
+    ip netns exec $6 ip link set dev $1 address $4
+    ip netns exec $6 ip link set dev $1 up
+    ip netns exec $6 ip addr add $2$3 dev $1
     ip netns exec $6 ip route add default via $5
 
 }
