@@ -154,30 +154,44 @@ start_socketplane() {
         return 1
     fi
 
+    if [ "$1" == "unattended" ]; then
+        [ -z $DOCKERHUB_USER ] && puts-warn "DOCKERHUB_USER not set" && exit 1
+        [ -z $DOCKERHUB_PASS ] && puts-warn "DOCKERHUB_PASS not set" && exit 1
+        [ -z $DOCKERHUB_MAIL ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
+        [ -z $BOOTSTRAP ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
 
-    # The following will prompt for:
-    #------------------------------#
-    # userid
-    # password
-    # email
-    docker login
+        docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
-    while true; do
-        read -p "Is this the first node in the cluster? (y/n)" yn
-        case $yn in
-            [Yy]* )
-                cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
-                break
-                ;;
-            [Nn]* )
-                cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
-                break
-                ;;
-            * )
-                echo "Please answer yes or no."
-                ;;
-        esac
-    done
+        if [ "$BOOTSTRAP" == "true" ] ; then
+            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
+        else
+            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
+        fi
+    else
+
+        # The following will prompt for:
+        #------------------------------#
+        # userid
+        # password
+        # email
+        docker login
+        while true; do
+            read -p "Is this the first node in the cluster? (y/n)" yn
+            case $yn in
+                [Yy]* )
+                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
+                    break
+                    ;;
+                [Nn]* )
+                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
+                    break
+                    ;;
+                * )
+                    echo "Please answer yes or no."
+                    ;;
+            esac
+        done
+    fi
     mkdir -p /var/run/socketplane
     echo $cid > /var/run/socketplane/cid
 }
@@ -290,12 +304,13 @@ fi
 
 case "$1" in
     install)
+        shift 1
         puts_command "Installing SocketPlane..."
         get_status
         check_supported_os
         verify_ovs
         verify_docker
-        start_socketplane
+        start_socketplane $@
         puts_command "Done!!!"
         ;;
     uninstall)

@@ -3,6 +3,12 @@
 
 VAGRANTFILE_API_VERSION = "2"
 
+$env = <<SCRIPT
+echo "export DOCKERHUB_USER=#{ENV['DOCKERHUB_USER']}" >> ~/.profile
+echo "export DOCKERHUB_PASS=#{ENV['DOCKERHUB_PASS']}" >> ~/.profile
+echo "export DOCKERHUB_MAIL=#{ENV['DOCKERHUB_MAIL']}" >> ~/.profile
+SCRIPT
+
 $ubuntu = <<SCRIPT
 echo ====> Updating Packages
 export DEBIAN_FRONTEND=noninteractive
@@ -12,7 +18,7 @@ echo ====> Installing Packages
 apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch
 ln -s /vagrant/socketplane.sh /usr/bin/socketplane
 echo ====> Installing SocketPlane
-socketplane install
+socketplane install unattended
 SCRIPT
 
 $redhat = <<SCRIPT
@@ -23,7 +29,7 @@ yum -qy remove docker
 yum -qy install docker-io openvswitch
 ln -s /vagrant/socketplane.sh /usr/bin/socketplane
 echo ====> Installing SocketPlane
-socketplane install
+socketplane install unattended
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -43,6 +49,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       socketplane.vm.provider :virtualbox do |vb|
         vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
       end
+      socketplane.vm.provision :shell, inline: $env
+      socketplane.vm.provision :shell, inline: "echo 'export BOOTSTRAP=#{n+1 == 1 ? "true" : "false"}' >> ~/.profile"
       socketplane.vm.provision :shell, inline: $ubuntu
     end
   end
