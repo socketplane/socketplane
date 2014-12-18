@@ -18,7 +18,7 @@ import (
 // shameless copy from docker/daemon/networkdriver/bridge/driver.go to reflect same behaviour
 // between this temporary wrapper solution to the native Network integration
 
-var addrs = []string{
+var gatewayAddrs = []string{
 	// Here we don't follow the convention of using the 1st IP of the range for the gateway.
 	// This is to use the same gateway IPs as the /24 ranges, which predate the /16 ranges.
 	// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
@@ -59,39 +59,49 @@ func init() {
 	}
 }
 
-func CreateBridge(bridgeIP string) error {
-	var ifaceAddr string
+func getAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
 	if len(bridgeIP) != 0 {
-		_, _, err := net.ParseCIDR(bridgeIP)
+		_, _, err = net.ParseCIDR(bridgeIP)
+		if err != nil {
+			return
+		}
+		gwaddr = bridgeIP
+	} else {
+		for _, addr := range gatewayAddrs {
+			_, dockerNetwork, err := net.ParseCIDR(addr)
+			if err != nil {
+				return "", err
+			}
+			if err = CheckRouteOverlaps(dockerNetwork); err == nil {
+				gwaddr = addr
+				return gwaddr, nil
+			}
+		}
+	}
+	return "", errors.New("No available GW address")
+}
+
+func CreateBridge(bridgeIP string) error {
+	ifaceAddr, err := getAvailableGwAddress(bridgeIP)
+	if err != nil {
+		return fmt.Errorf("Could not find a free IP address range for '%s'", OvsBridge.Name)
+	}
+
+	iface, err := net.InterfaceByName(OvsBridge.Name)
+	if iface == nil && err != nil {
+		if err := createBridgeIface(OvsBridge.Name); err != nil {
+			return err
+		}
+		iface, err = net.InterfaceByName(OvsBridge.Name)
 		if err != nil {
 			return err
 		}
-		ifaceAddr = bridgeIP
 	} else {
-		for _, addr := range addrs {
-			_, dockerNetwork, err := net.ParseCIDR(addr)
-			if err != nil {
-				return err
-			}
-			if err := CheckRouteOverlaps(dockerNetwork); err == nil {
-				ifaceAddr = addr
-				break
-			} else {
-				log.Printf("%s %s", addr, err)
-			}
+		addr, err := GetIfaceAddr(OvsBridge.Name)
+		if err != nil {
+			return err
 		}
-	}
-
-	if ifaceAddr == "" {
-		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", OvsBridge.Name, OvsBridge.Name)
-	}
-
-	if err := createBridgeIface(OvsBridge.Name); err != nil {
-		return err
-	}
-	iface, err := net.InterfaceByName(OvsBridge.Name)
-	if err != nil {
-		return err
+		ifaceAddr = addr.String()
 	}
 
 	ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
@@ -135,59 +145,86 @@ func DeletePeer(peerIp string) error {
 	if ovs == nil {
 		return errors.New("OVS not connected")
 	}
-	deleteVxlanPort(ovs, OvsBridge.Name, "vxlan-"+peerIp)
+	deletePort(ovs, OvsBridge.Name, "vxlan-"+peerIp)
 	return nil
 }
 
-func AddConnection(nspid int) (string, error) {
+type OvsConnection struct {
+	Name    string
+	Ip      string
+	Subnet  string
+	Mac     string
+	Gateway string
+}
+
+func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
 	var (
 		bridge = OvsBridge.Name
 		prefix = "ovs"
 	)
+	ovsConnection = OvsConnection{}
+	err = nil
+
 	if bridge == "" {
-		return "", fmt.Errorf("bridge is not available")
+		err = fmt.Errorf("bridge is not available")
+		return
 	}
 	portName, err := createOvsInternalPort(prefix, bridge)
 	if err != nil {
-		return "", err
+		return
 	}
 	// Add a dummy sleep to make sure the interface is seen by the subsequent calls.
 	time.Sleep(time.Second * 1)
-	if err := SetMtu(portName, mtu); err != nil {
-		return "", err
+
+	ip := ipam.Request(*OvsBridge.Subnet)
+	subnet := *OvsBridge.Subnet
+	mac := generateMacAddr(ip).String()
+	gatewayIp := OvsBridge.IP.String()
+
+	ovsConnection = OvsConnection{portName, ip.String(), subnet.String(), mac, gatewayIp}
+
+	if err = SetMtu(portName, mtu); err != nil {
+		return
 	}
-	if err := InterfaceUp(portName); err != nil {
-		return "", err
+	if err = InterfaceUp(portName); err != nil {
+		return
 	}
-	if err := SetInterfaceInNamespacePid(portName, nspid); err != nil {
-		return "", err
+	if err = SetInterfaceInNamespacePid(portName, nspid); err != nil {
+		return
 	}
 
-	if err := InterfaceDown(portName); err != nil {
-		return "", fmt.Errorf("interface down %s %s", portName, err)
+	if err = InterfaceDown(portName); err != nil {
+		return
 	}
 	// TODO : Find a way to change the interface name to defaultDevice (eth0).
 	// Currently using the Randomly created OVS port as is.
 	// refer to veth.go where one end of the veth pair is renamed to eth0
-	if err := ChangeInterfaceName(portName, portName); err != nil {
-		return "", fmt.Errorf("change %s to %s %s", portName, portName, err)
+	if err = ChangeInterfaceName(portName, portName); err != nil {
+		return
 	}
 
-	ip := ipam.Request(*OvsBridge.Subnet)
-	if err := SetInterfaceIp(portName, ip.String()); err != nil {
-		return "", fmt.Errorf("set %s ip %s", portName, err)
+	if err = SetInterfaceIp(portName, ip.String()); err != nil {
+		return
 	}
-	if err := SetInterfaceMac(portName, generateMacAddr(ip).String()); err != nil {
-		return "", fmt.Errorf("set %s mac %s", portName, err)
+	if err = SetInterfaceMac(portName, generateMacAddr(ip).String()); err != nil {
+		return
 	}
 
-	if err := InterfaceUp(portName); err != nil {
-		return "", fmt.Errorf("%s up %s", portName, err)
+	if err = InterfaceUp(portName); err != nil {
+		return
 	}
-	if err := SetDefaultGateway(OvsBridge.IP.String(), portName); err != nil {
-		return "", fmt.Errorf("set gateway to %s on device %s failed with %s", OvsBridge.IP, portName, err)
+	if err = SetDefaultGateway(OvsBridge.IP.String(), portName); err != nil {
+		return
 	}
-	return portName, nil
+	return ovsConnection, nil
+}
+
+func DeleteConnection(portName string) error {
+	if ovs == nil {
+		return errors.New("OVS not connected")
+	}
+	deletePort(ovs, OvsBridge.Name, portName)
+	return nil
 }
 
 // createOvsInternalPort will generate a random name for the

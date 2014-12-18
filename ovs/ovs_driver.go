@@ -164,18 +164,12 @@ func addVxlanPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string,
 	if len(reply) < len(operations) {
 		fmt.Println("Number of Replies should be atleast equal to number of Operations")
 	}
-	ok := true
 	for i, o := range reply {
 		if o.Error != "" && i < len(operations) {
 			fmt.Println("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i])
-			ok = false
 		} else if o.Error != "" {
 			fmt.Println("Transaction Failed due to an error :", o.Error)
-			ok = false
 		}
-	}
-	if ok {
-		fmt.Println("Port Addition Successful : ", reply[1].UUID.GoUuid)
 	}
 }
 
@@ -189,7 +183,7 @@ func portUuidForName(portName string) string {
 	return ""
 }
 
-func deleteVxlanPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
+func deletePort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
 	condition := libovsdb.NewCondition("name", "==", portName)
 	deleteOp := libovsdb.Operation{
 		Op:    "delete",
@@ -278,18 +272,12 @@ func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName stri
 	if len(reply) < len(operations) {
 		fmt.Println("Number of Replies should be atleast equal to number of Operations")
 	}
-	ok := true
 	for i, o := range reply {
 		if o.Error != "" && i < len(operations) {
 			fmt.Println("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i])
-			ok = false
 		} else if o.Error != "" {
 			fmt.Println("Transaction Failed due to an error :", o.Error)
-			ok = false
 		}
-	}
-	if ok {
-		fmt.Println("Port Addition Successful : ", reply[1].UUID.GoUuid)
 	}
 }
 

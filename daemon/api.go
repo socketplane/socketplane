@@ -131,17 +131,22 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
-	portName, err := ovs.AddConnection(pid)
-	if err != nil {
+	ovsConnection, err := ovs.AddConnection(pid)
+	if err != nil && ovsConnection.Name == "" {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
-	cfg.OvsPortID = portName
+	cfg.OvsPortID = ovsConnection.Name
 	d.Connections[cfg.ContainerName] = cfg
+
+	data, _ := json.Marshal(ovsConnection)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
 	return nil
 }
 
 func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	// vars := mux.Vars(r)
-	// containerID := vars["id"]
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	vars := mux.Vars(r)
+	portID := vars["id"]
+	ovs.DeleteConnection(portID)
+	return nil
 }
