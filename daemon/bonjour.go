@@ -36,3 +36,6 @@ func (n notify) RemoveMember(addr net.IP) {
 	log.Println("Member Left : ", addr)
 	ovs.DeletePeer(addr.String())
 }
+func InterfaceToBind() *net.Interface {
+	return bonjour.InterfaceToBind()
+}

@@ -25,6 +25,11 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	var bindInterface string
 	if ctx.String("iface") != "auto" {
 		bindInterface = ctx.String("iface")
+	} else {
+		intf := InterfaceToBind()
+		if intf != nil {
+			bindInterface = intf.Name
+		}
 	}
 	go ServeAPI(d)
 	go ovs.CreateBridge("")
