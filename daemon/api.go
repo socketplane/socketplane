@@ -24,11 +24,12 @@ type Configuration struct {
 }
 
 type Connection struct {
-	ConnectionID  string `json:"connection_id"`
-	ContainerID   string `json:"container_id"`
-	ContainerName string `json:"container_name"`
-	ContainerPID  string `json:"container_pid"`
-	OvsPortID     string `json:"ovs_port_id"`
+	ConnectionID      string            `json:"connection_id"`
+	ContainerID       string            `json:"container_id"`
+	ContainerName     string            `json:"container_name"`
+	ContainerPID      string            `json:"container_pid"`
+	OvsPortID         string            `json:"ovs_port_id"`
+	ConnectionDetails ovs.OvsConnection `json:"connection_details"`
 }
 
 type apiError struct {
@@ -136,9 +137,10 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
 	cfg.OvsPortID = ovsConnection.Name
+	cfg.ConnectionDetails = ovsConnection
 	d.Connections[cfg.ContainerName] = cfg
 
-	data, _ := json.Marshal(ovsConnection)
+	data, _ := json.Marshal(cfg)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Write(data)
 	return nil

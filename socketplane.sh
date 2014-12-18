@@ -154,14 +154,29 @@ start_socketplane() {
         return 1
     fi
 
+
     # The following will prompt for:
     #------------------------------#
     # userid
     # password
     # email
     docker login
+
+    puts_command "Is this the first node in the cluster"
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes )
+                cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
+                break
+                ;;
+            No )
+                cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
+                break
+                ;;
+        esac
+    done
+
     mkdir -p /var/run/socketplane
-    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
     echo $cid > /var/run/socketplane/cid
 }
 
@@ -202,20 +217,45 @@ logs() {
 }
 
 run() {
-    args=$(echo $@ | sed 's/^run\s//g')
-    $cid=$(docker run $args)
-    $cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
-    $cName=$(docker inspect --format='{{ .Name }}' $cid)
+    cid=$(docker run $@)
+    cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
+    cName=$(docker inspect --format='{{ .Name }}' $cid)
 
-    sudo curl -S -v -X POST http://localhost:6675/v0.1/connections -d '{ "container_id": "$cid", "container_name": "$cName", "container_pid": "$cPid"}'
+    result=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\" }" | sed 's/[,{}]/\'$'\n/g' | sed 's/^".*":"\(.*\)"$/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
 
-    # ToDo: grep return JSON to get OVS_Port_Id
+    attach $result $cPid
+
+    echo $cid
+}
+
+attach() {
+    # $1 = OVS Port ID
+    # $2 = IP Address
+    # $3 = Subnet
+    # $4 = MAC Address
+    # $5 = Gateway IP
+    # $6 = Namespace PID
+
+    # see: https://docs.docker.com/articles/networking/
 
     [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
-    [ -f /var/run/netns/$NSPID ] && rm -f /var/run/netns/$NSPID
-    ln -s /proc/$NSPID/ns/net /var/run/netns/$NSPID
+    [ -f /var/run/netns/$cPid ] && rm -f /var/run/netns/$cPid
+    ln -s /proc/$cPid/ns/net /var/run/netns/$cPid
 
-    # ToDo: add ovs interface to container
+    ip link set dev $1 netns $6
+    ip netns exec $6 ip link set dev $1 name eth0
+    ip netns exec $6 ip link set dev eth0 address $4
+    ip netns exec $6 ip link set dev eth0 up
+    ip netns exec $6 ip addr add $2$3 dev eth0
+    ip netns exec $6 ip route add default via $5
+
+}
+
+delete() {
+    curl -s -X DELETE http://localhost:6675/v0.1/connections/$1
+    sleep 1
+    # clean up dangling symlinks
+    find -L /var/run/netns -type l -delete
 }
 
 usage() {
@@ -237,7 +277,9 @@ INSTALLATION COMMANDS:
 RUNTIME COMMANDS:
     socketplane logs                Show SocketPlane container logs
     socketplane run <args>          Run a container where <args> are the same as "docker run"
-
+    socketplane start <container_id>
+    socketplane stop <container_id>
+    socketplane rm <container_id>
 EOF
 }
 
@@ -276,7 +318,20 @@ case "$1" in
         logs
         ;;
     run)
+        shift 1
         run $@
+        ;;
+    stop)
+        shift 1
+        docker stop $@
+        ;;
+    start)
+        shift 1
+        docker start $@
+        ;;
+    rm)
+        shift 1
+        delete
         ;;
     show_reqs)
         get_status

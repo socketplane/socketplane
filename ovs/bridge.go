@@ -150,11 +150,11 @@ func DeletePeer(peerIp string) error {
 }
 
 type OvsConnection struct {
-	Name    string
-	Ip      string
-	Subnet  string
-	Mac     string
-	Gateway string
+	Name    string `json:"name"`
+	Ip      string `json:"ip"`
+	Subnet  string `json:"subnet"`
+	Mac     string `json:"mac"`
+	Gateway string `json:"gateway"`
 }
 
 func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
@@ -177,11 +177,13 @@ func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
 	time.Sleep(time.Second * 1)
 
 	ip := ipam.Request(*OvsBridge.Subnet)
-	subnet := *OvsBridge.Subnet
+	subnet := OvsBridge.Subnet.String()
 	mac := generateMacAddr(ip).String()
 	gatewayIp := OvsBridge.IP.String()
 
-	ovsConnection = OvsConnection{portName, ip.String(), subnet.String(), mac, gatewayIp}
+	subnetPrefix := subnet[len(subnet)-3 : len(subnet)]
+
+	ovsConnection = OvsConnection{portName, ip.String(), subnetPrefix, mac, gatewayIp}
 
 	if err = SetMtu(portName, mtu); err != nil {
 		return
