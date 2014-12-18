@@ -162,20 +162,22 @@ start_socketplane() {
     # email
     docker login
 
-    puts_command "Is this the first node in the cluster"
-    select yn in "Yes" "No"; do
+    while true; do
+        read -p "Is this the first node in the cluster? (y/n)" yn
         case $yn in
-            Yes )
+            [Yy]* )
                 cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
                 break
                 ;;
-            No )
+            [Nn]* )
                 cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
                 break
                 ;;
+            * )
+                echo "Please answer yes or no."
+                ;;
         esac
     done
-
     mkdir -p /var/run/socketplane
     echo $cid > /var/run/socketplane/cid
 }
@@ -261,26 +263,23 @@ delete() {
 
 usage() {
     cat << EOF
-usage: $0 <command>
+USAGE: $0 <command>
 
-Install and run SocketPlane. This will install various packages
-from the distributions default repositories if not already installed,
-including open vswitch, docker and the socketplane control image from
-dockerhub.
+Install and run SocketPlane. This will install Open vSwitch and  Docker, if required, then it will install the SocketPlane container.
 
 INSTALLATION COMMANDS:
-    socketplane help                Help and usage
-    socketplane install             Install SocketPlane (installs docker and openvswitch)
-    socketplane uninstall           Remove Socketplane installation
-    socketplane clean               Remove Socketplane installation and dependencies (docker and openvswitch)
-    socketplane show_reqs           List all socketplane installation requirements
+    socketplane help                        Help and usage
+    socketplane install                     Install SocketPlane (installs docker and openvswitch)
+    socketplane uninstall                   Remove Socketplane installation
+    socketplane clean                       Remove Socketplane installation and dependencies (docker and openvswitch)
+    socketplane show_reqs                   List all socketplane installation requirements
+        socketplane logs                    Show SocketPlane container logs
 
-RUNTIME COMMANDS:
-    socketplane logs                Show SocketPlane container logs
-    socketplane run <args>          Run a container where <args> are the same as "docker run"
-    socketplane start <container_id>
-    socketplane stop <container_id>
-    socketplane rm <container_id>
+DOCKER WRAPPER COMMANDS:
+    socketplane run <args>              Run a container where <args> are the same as "docker run"
+    socketplane start <container_id>    Start a <container_id>
+    socketplane stop <container_id>     Stop the <container_id>
+    socketplane rm <container_id>       Remove the <container_id>
 EOF
 }
 
