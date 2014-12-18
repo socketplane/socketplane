@@ -212,6 +212,7 @@ remove_socketplane() {
 logs() {
     if [ ! -f /var/run/socketplane/cid ] || [ -z $(cat /var/run/socketplane/cid) ]; then
         puts_warn "SocketPlane container is not running"
+        exit 1
     fi
     docker logs $(cat /var/run/socketplane/cid)
 }
@@ -251,7 +252,8 @@ attach() {
 }
 
 delete() {
-    curl -s -X DELETE http://localhost:6675/v0.1/connections/$1
+    docker rm $@
+    curl -s -X DELETE http://localhost:6675/v0.1/connections/$@
     sleep 1
     # clean up dangling symlinks
     find -L /var/run/netns -type l -delete
@@ -330,7 +332,7 @@ case "$1" in
         ;;
     rm)
         shift 1
-        delete
+        delete $@
         ;;
     show_reqs)
         get_status

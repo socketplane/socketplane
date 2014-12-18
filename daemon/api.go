@@ -24,7 +24,6 @@ type Configuration struct {
 }
 
 type Connection struct {
-	ConnectionID      string            `json:"connection_id"`
 	ContainerID       string            `json:"container_id"`
 	ContainerName     string            `json:"container_name"`
 	ContainerPID      string            `json:"container_pid"`
@@ -138,7 +137,7 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	}
 	cfg.OvsPortID = ovsConnection.Name
 	cfg.ConnectionDetails = ovsConnection
-	d.Connections[cfg.ContainerName] = cfg
+	d.Connections[cfg.ContainerID] = cfg
 
 	data, _ := json.Marshal(cfg)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -148,7 +147,12 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 
 func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
 	vars := mux.Vars(r)
-	portID := vars["id"]
-	ovs.DeleteConnection(portID)
+	containerID := vars["id"]
+
+	portID := d.Connections[containerID].OvsPortID
+	err := ovs.DeleteConnection(portID)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
 	return nil
 }
