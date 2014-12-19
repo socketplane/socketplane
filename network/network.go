@@ -42,10 +42,6 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 	return networkFromLocalCache(id, subnet), nil
 }
 
-func CreateDefaultNetwork(subnet *net.IPNet) (*Network, error) {
-	return CreateNetwork(DefaultNetworkName, subnet)
-}
-
 func DeleteNetwork(id string) error {
 	eccerror := ecc.Delete(dataStore, id)
 	if eccerror == ecc.OK {
@@ -57,6 +53,14 @@ func DeleteNetwork(id string) error {
 
 func GetNetwork(id string) *Network {
 	return networkMap[id]
+}
+
+func CreateDefaultNetwork(subnet *net.IPNet) (*Network, error) {
+	return CreateNetwork(DefaultNetworkName, subnet)
+}
+
+func GetDefaultNetwork() *Network {
+	return GetNetwork(DefaultNetworkName)
 }
 
 func networkFromLocalCache(id string, subnet *net.IPNet) *Network {

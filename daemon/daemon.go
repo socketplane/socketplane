@@ -1,11 +1,13 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/socketplane/socketplane/datastore"
+	"github.com/socketplane/socketplane/network"
 	"github.com/socketplane/socketplane/ovs"
 )
 
@@ -31,8 +33,12 @@ func (d *Daemon) Run(ctx *cli.Context) {
 			bindInterface = intf.Name
 		}
 	}
+	fmt.Println("Bind Interface ", bindInterface)
 	go ServeAPI(d)
-	go ovs.CreateBridge("")
+	go func() {
+		ovs.CreateBridge("")
+		network.CreateDefaultNetwork(ovs.OvsBridge.Subnet)
+	}()
 	go Bonjour(bindInterface)
 	go datastore.Init(bindInterface, ctx.Bool("bootstrap"))
 	c := make(chan os.Signal, 1)
