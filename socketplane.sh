@@ -179,7 +179,7 @@ start_socketplane() {
         [ -z $DOCKERHUB_MAIL ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
         [ -z $BOOTSTRAP ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
 
-        docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
+        sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
         if [ "$BOOTSTRAP" == "true" ] ; then
             cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
@@ -193,7 +193,7 @@ start_socketplane() {
         # userid
         # password
         # email
-        docker login
+        sudo docker login
         while true; do
             read -p "Is this the first node in the cluster? (y/n)" yn
             case $yn in
