@@ -149,10 +149,10 @@ verify_docker() {
         if [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
             yum -q -y remove docker > /dev/null
         fi
-        if test -x "$(which wget 2>/dev/null)" ; then
-            wget -qO- https://get.docker.com/ | sh
-        elif test -x "$(which curl 2>/dev/null)" ; then
+        if test -x "$(which curl 2>/dev/null)" ; then
             curl -sSL https://get.docker.com/ | sh
+        elif test -x "$(which wget 2>/dev/null)" ; then
+            wget -qO- https://get.docker.com/ | sh
         fi
     fi
 
