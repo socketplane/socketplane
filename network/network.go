@@ -9,6 +9,7 @@ import (
 )
 
 const dataStore = "network"
+const DefaultNetworkName = "default"
 
 const vlanCount = 4096
 
@@ -39,6 +40,10 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 		return CreateNetwork(id, subnet)
 	}
 	return networkFromLocalCache(id, subnet), nil
+}
+
+func CreateDefaultNetwork(subnet *net.IPNet) (*Network, error) {
+	return CreateNetwork(DefaultNetworkName, subnet)
 }
 
 func DeleteNetwork(id string) error {
