@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
+	"github.com/socketplane/socketplane/datastore"
 )
 
 func TestInit(t *testing.T) {
-	err := Init("eth1", true)
+	err := datastore.Init("eth1", true)
 	if err != nil {
 		t.Error("Error starting Consul ", err)
 	}
@@ -107,5 +108,5 @@ func TestCleanup(t *testing.T) {
 	ecc.Delete(dataStore, "192.167.1.0/24")
 	ecc.Delete(dataStore, "192.168.0.0/16")
 	ecc.Delete(dataStore, "192.169.32.0/20")
-	Leave()
+	datastore.Leave()
 }

@@ -12,12 +12,7 @@ import (
 // Simple IPv4 IPAM solution using Consul Distributed KV store
 // Key = subnet, Value = Bit Array of available ip-addresses in a given subnet
 
-const dataDir = "/tmp/socketplane"
 const dataStore = "ipam"
-
-func Init(bindInterface string, bootstrap bool) error {
-	return ecc.Start(true, bootstrap, bindInterface, dataDir)
-}
 
 func Request(subnet net.IPNet) net.IP {
 	bits := bitCount(subnet)
@@ -173,12 +168,4 @@ func GetAnAddress(subnet string) (string, error) {
 	}
 	addrArray[3] -= 1
 	return net.IP(addrArray).String(), nil
-}
-
-func Join(address string) error {
-	return ecc.Join(address)
-}
-
-func Leave() error {
-	return ecc.Leave()
 }

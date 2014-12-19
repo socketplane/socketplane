@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
-	"github.com/socketplane/socketplane/ipam"
+	"github.com/socketplane/socketplane/datastore"
 	"github.com/socketplane/socketplane/ovs"
 )
 
@@ -29,7 +29,7 @@ type notify struct{}
 
 func (n notify) NewMember(addr net.IP) {
 	log.Println("New Member Added : ", addr)
-	ipam.Join(addr.String())
+	datastore.Join(addr.String())
 	ovs.AddPeer(addr.String())
 }
 func (n notify) RemoveMember(addr net.IP) {

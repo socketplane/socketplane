@@ -5,7 +5,7 @@ import (
 	"os/signal"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
-	"github.com/socketplane/socketplane/ipam"
+	"github.com/socketplane/socketplane/datastore"
 	"github.com/socketplane/socketplane/ovs"
 )
 
@@ -34,7 +34,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	go ServeAPI(d)
 	go ovs.CreateBridge("")
 	go Bonjour(bindInterface)
-	go ipam.Init(bindInterface, ctx.Bool("bootstrap"))
+	go datastore.Init(bindInterface, ctx.Bool("bootstrap"))
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
