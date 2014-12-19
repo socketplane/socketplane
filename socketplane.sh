@@ -58,8 +58,8 @@ get_status() {
     DOCKER_SVER="NOT_INSTALLED"
     DOCKER_CVER="NOT_INSTALLED"
     if command_exists docker || command_exists lxc-docker; then
-        DOCKER_SVER=$(docker version | grep "Server version:" |  awk '{ print $3 }')
-        DOCKER_CVER=$(docker version | grep "Client API version:" |  awk '{ print $4 }')
+        DOCKER_SVER=$(sudo docker version | grep "Server version:" |  awk '{ print $3 }')
+        DOCKER_CVER=$(sudo docker version | grep "Client API version:" |  awk '{ print $4 }')
     fi
 
     OVS_SVER="NOT_INSTALLED"
@@ -168,7 +168,7 @@ verify_docker() {
 start_socketplane() {
     puts_step "Starting the SocketPlane container"
 
-    if [ ! -z $(docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
+    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
         puts_warn "SocketPlane container is already running"
         return 1
     fi
@@ -182,9 +182,9 @@ start_socketplane() {
         sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
         if [ "$BOOTSTRAP" == "true" ] ; then
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
         else
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
         fi
     else
 
@@ -198,11 +198,11 @@ start_socketplane() {
             read -p "Is this the first node in the cluster? (y/n)" yn
             case $yn in
                 [Yy]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
                     break
                     ;;
                 [Nn]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
                     break
                     ;;
                 * )
@@ -222,7 +222,7 @@ stop_socketplane() {
         exit 1
     fi
 
-    for IMAGE_ID in $(docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
+    for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
         echo "Removing socketplane image: $IMAGE_ID"
         docker stop $IMAGE_ID > /dev/null
         sleep 1
@@ -238,9 +238,9 @@ remove_socketplane() {
         exit 1
     fi
 
-    for IMAGE_ID in $(docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
+    for IMAGE_ID in $(sudo docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
         echo "Removing socketplane image: $IMAGE_ID"
-        docker rmi $IMAGE_ID > /dev/null
+       sudo docker rmi $IMAGE_ID > /dev/null
     done
 }
 
@@ -249,13 +249,13 @@ logs() {
         puts_warn "SocketPlane container is not running"
         exit 1
     fi
-    docker logs $(cat /var/run/socketplane/cid)
+    sudo docker logs $(cat /var/run/socketplane/cid)
 }
 
 run() {
-    cid=$(docker run --net=none $@)
-    cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
-    cName=$(docker inspect --format='{{ .Name }}' $cid)
+    cid=$(sudo docker run --net=none $@)
+    cPid=$(sudo docker inspect --format='{{ .State.Pid }}' $cid)
+    cName=$(sudo docker inspect --format='{{ .Name }}' $cid)
 
     result=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\" }" | sed 's/[,{}]/\'$'\n/g' | sed 's/^".*":"\(.*\)"$/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
 
@@ -287,7 +287,7 @@ attach() {
 }
 
 delete() {
-    docker rm $@
+    sudo docker rm $@
     curl -s -X DELETE http://localhost:6675/v0.1/connections/$@
     sleep 1
     # clean up dangling symlinks
@@ -386,6 +386,17 @@ case "$1" in
         get_status
         check_supported_os
         show_reqs
+        ;;
+        agent)
+#        check_supported_os
+        shift 1
+        echo  "$@"
+        if [ "$@" == "start" ]; then
+        puts_command "starting docker agent"
+        elif [ "$@" == "stop" ]; then
+        puts_command "stopping docker agent"
+        else puts_warn "agent options are {stop|start}"
+        fi
         ;;
     *)
         usage
