@@ -84,6 +84,21 @@ show_reqs() {
     echo "....   Current:               $DOCKER_SVER"
 }
 
+kernel_opts(){
+    if [ $(cat /etc/sysctl.conf | grep icmp_echo_ignore_broadcasts) ]; then
+        sed -i 's/^#\?net\.ipv4\.icmp_echo_ignore_broadcasts.*$/net\.ipv4\.icmp_echo_ignore_broadcasts=0/g' /etc/sysctl.conf
+    else
+        echo 'net.ipv4.icmp_echo_ignore_broadcasts=0' >> /etc/sysctl.conf
+    fi
+
+    if [ $(cat /etc/sysctl.conf | grep ip_forward ) ]; then
+        sed -i 's/^#\?net\.ipv4\.ip_forward.*$/net\.ipv4\.ip_forward=1/g' /etc/sysctl.conf
+    else
+        echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    fi
+    sysctl -p
+}
+
 verify_ovs() {
     if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
         puts_step "OVS already installed"
@@ -167,9 +182,9 @@ start_socketplane() {
         docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
         if [ "$BOOTSTRAP" == "true" ] ; then
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
+            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
         else
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
+            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
         fi
     else
 
@@ -183,11 +198,11 @@ start_socketplane() {
             read -p "Is this the first node in the cluster? (y/n)" yn
             case $yn in
                 [Yy]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true)
+                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
                     break
                     ;;
                 [Nn]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane)
+                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
                     break
                     ;;
                 * )
@@ -312,6 +327,7 @@ case "$1" in
         puts_command "Installing SocketPlane..."
         get_status
         check_supported_os
+        kernel_opts
         verify_ovs
         verify_docker
         start_socketplane $@
