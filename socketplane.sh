@@ -253,7 +253,7 @@ logs() {
 }
 
 run() {
-    cid=$(docker run $@)
+    cid=$(docker run --net=none $@)
     cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
