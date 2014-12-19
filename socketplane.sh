@@ -294,6 +294,15 @@ delete() {
     find -L /var/run/netns -type l -delete
 }
 
+info() {
+    containerId=$1
+    if [ -z "$containerId" ]; then
+        curl -s -X GET http://localhost:6675/v0.1/connections | python -m json.tool
+    else
+        curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+    fi
+}
+
 usage() {
     cat << EOF
 USAGE: $0 <command>
@@ -306,7 +315,8 @@ INSTALLATION COMMANDS:
     socketplane uninstall                   Remove Socketplane installation
     socketplane clean                       Remove Socketplane installation and dependencies (docker and openvswitch)
     socketplane show_reqs                   List all socketplane installation requirements
-        socketplane logs                    Show SocketPlane container logs
+    socketplane logs                        Show SocketPlane container logs
+    socketplane info [container_id]         Show SocketPlane info for all containers, or for a given container_id
 
 DOCKER WRAPPER COMMANDS:
     socketplane run <args>              Run a container where <args> are the same as "docker run"
@@ -367,6 +377,10 @@ case "$1" in
     rm)
         shift 1
         delete $@
+        ;;
+    info)
+        shift 1
+        info $@
         ;;
     show_reqs)
         get_status

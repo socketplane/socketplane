@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -108,13 +109,26 @@ func setConfiguration(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 }
 
 func getConnections(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	data, _ := json.Marshal(d.Connections)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func getConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	// vars := mux.Vars(r)
-	// containerID := vars["id"]
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	vars := mux.Vars(r)
+	containerID := vars["id"]
+	connection := d.Connections[containerID]
+
+	if connection == nil {
+		msg := fmt.Sprintf("Connection for container %v not found", containerID)
+		return &apiError{http.StatusNotFound, msg}
+	}
+
+	data, _ := json.Marshal(connection)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
