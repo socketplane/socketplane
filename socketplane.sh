@@ -20,7 +20,7 @@ puts_warn() {
 }
 
 check_supported_os() {
-    puts_step "Detected Linux distribution: $OS $RELEASE $CODENAME $ARCH"
+    puts_step "Detected Linux distribution: $OS $ARCH"
     if ! echo $OS | grep -E 'Ubuntu|Debian|Fedora|RedHat' > /dev/null; then
         puts_warn "Supported operating systems are: Ubuntu, Debian and Fedora."
         exit 1
@@ -134,7 +134,11 @@ verify_docker() {
         if [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
             yum -q -y remove docker > /dev/null
         fi
-        wget -qO- https://get.docker.com/ | sh
+        if test -x "$(which wget 2>/dev/null)" ; then
+            wget -qO- https://get.docker.com/ | sh
+        elif test -x "$(which curl 2>/dev/null)" ; then
+            curl -sSL https://get.docker.com/ | sh
+        fi
     fi
 
     if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
@@ -321,7 +325,7 @@ case "$1" in
         puts_command "Done!!!"
         ;;
     clean)
-        puts_command "Removing SocketPlane and all it's dependencies..."
+        puts_command "Removing SocketPlane and all its dependencies..."
         get_status
         check_supported_os
         remove_ovs
