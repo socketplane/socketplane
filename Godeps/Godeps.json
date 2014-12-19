@@ -145,8 +145,8 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/bonjour",
-			"Comment": "v0.1.2",
-			"Rev": "2e0b7e13b9b4047d91e7e03d7a4371dd778bfe7a"
+			"Comment": "v0.1.2-1-g318167d",
+			"Rev": "318167d6074fe3d62c367a09bb6bfa78388be1ee"
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",
@@ -154,7 +154,7 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/go-fastping",
-			"Rev": "61a6ac4ac4836bb4ec547d916998371c85ee8e88"
+			"Rev": "eafce8aa94f12c1f6a04a01423c48727d200aa73"
 		},
 		{
 			"ImportPath": "github.com/socketplane/libovsdb",

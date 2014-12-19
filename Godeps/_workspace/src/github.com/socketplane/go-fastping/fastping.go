@@ -524,6 +524,11 @@ func (p *Pinger) procRecv(recv *packet, queue map[string]*net.IPAddr) {
 		return
 	}
 
+	if p.ListenAddr.String() == recv.addr.String() {
+		// Local reply is not useful
+		return
+	}
+
 	var rtt time.Duration
 	switch pkt := m.Body.(type) {
 	case *icmpEcho:

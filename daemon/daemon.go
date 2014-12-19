@@ -33,7 +33,6 @@ func (d *Daemon) Run(ctx *cli.Context) {
 			bindInterface = intf.Name
 		}
 	}
-	fmt.Println("Bind Interface ", bindInterface)
 	go ServeAPI(d)
 	go func() {
 		ovs.CreateBridge("")

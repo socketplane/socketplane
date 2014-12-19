@@ -106,30 +106,49 @@ func isMyAddress(address string) bool {
 	return false
 }
 
-func InterfaceToBind() *net.Interface {
-	var iface *net.Interface = nil
+func IsInterfaceEligible(bIntf *net.Interface) bool {
+	if bIntf.Flags&net.FlagLoopback == 0 {
+		addrs, err := bIntf.Addrs()
+		if err != nil {
+			return false
+		}
+		for i := 0; i < len(addrs); i++ {
+			ip, _, err := net.ParseCIDR(addrs[i].String())
+			if err == nil && ip.To4() != nil {
+				ret, err := echo("224.0.0.1", &ip)
+				if err == nil && ret == ECHO_REPLY {
+					return true
+				}
+			}
+			// TODO : Handle IPv6
+		}
+	}
+	return false
+}
+
+func EligibleInterfacesToBind() []*net.Interface {
+	var eligibleIfaces []*net.Interface = []*net.Interface{}
 	ifaces, err := net.Interfaces()
 	if err == nil {
-	BindIntf:
 		for _, bIntf := range ifaces {
-			addrs, err := bIntf.Addrs()
-			if err != nil {
-				continue
-			}
-			for i := 0; i < len(addrs); i++ {
-				ip, _, err := net.ParseCIDR(addrs[i].String())
-				if err == nil && ip.To4() != nil {
-					ret, err := echo("224.0.0.1", &ip)
-					if err == nil && ret == ECHO_REPLY {
-						iface = &bIntf
-						break BindIntf
-					}
-				}
-				// TODO : Handle IPv6
+			if IsInterfaceEligible(&bIntf) {
+				eligibleIfaces = append(eligibleIfaces, &bIntf)
 			}
 		}
 	}
-	return iface
+	return eligibleIfaces
+}
+
+func InterfaceToBind() *net.Interface {
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, bIntf := range ifaces {
+			if IsInterfaceEligible(&bIntf) {
+				return &bIntf
+			}
+		}
+	}
+	return nil
 }
 
 func (b Bonjour) keepAlive(resolver *Resolver) {

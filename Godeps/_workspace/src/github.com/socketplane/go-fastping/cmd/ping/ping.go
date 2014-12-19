@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tatsushid/go-fastping"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/go-fastping"
 )
 
 type response struct {

@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/socketplane/bonjour",
-	"GoVersion": "go1.3.3 darwin/amd64",
+	"GoVersion": "go1.2.1",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/miekg/dns",
@@ -8,7 +11,7 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/go-fastping",
-			"Rev": "61a6ac4ac4836bb4ec547d916998371c85ee8e88"
+			"Rev": "eafce8aa94f12c1f6a04a01423c48727d200aa73"
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/iana",
