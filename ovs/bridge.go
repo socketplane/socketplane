@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
@@ -118,6 +120,12 @@ func CreateBridge(bridgeIP string) error {
 	if err := netlink.NetworkLinkUp(iface); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
+
+	err = setupIPTables(OvsBridge.Name, OvsBridge.Subnet.String())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -274,4 +282,68 @@ func generateMacAddr(ip net.IP) net.HardwareAddr {
 	copy(hw[2:], ip.To4())
 
 	return hw
+}
+
+func setupIPTables(bridgeName string, bridgeIP string) error {
+	/*
+		# Enable IP Masquerade on all ifaces that are not docker-ovs0
+		iptables -t nat -A POSTROUTING -s 10.1.42.1/16 ! -o %bridgeName -j MASQUERADE
+
+		# Enable outgoing connections on all interfaces
+		iptables -A FORWARD -i %bridgeName ! -o %bridgeName -j ACCEPT
+
+		# Enable incoming connections for established sessions
+		iptables -A FORWARD -o %bridgeName -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+	*/
+
+	log.Println("Setting up iptables")
+	natArgs := []string{"-t", "nat", "-A", "POSTROUTING", "-s", bridgeIP, "!", "-o", bridgeName, "-j", "MASQUERADE"}
+	output, err := installRule(natArgs...)
+	if err != nil {
+		log.Printf("Unable to enable network bridge NAT: %s", err)
+		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+	}
+	if len(output) != 0 {
+		log.Printf("Error enabling network bridge NAT: %s", err)
+		return fmt.Errorf("Error enabling network bridge NAT: %s", output)
+	}
+
+	outboundArgs := []string{"-A", "FORWARD", "-i", bridgeName, "!", "-o", bridgeName, "-j", "ACCEPT"}
+	output, err = installRule(outboundArgs...)
+	if err != nil {
+		log.Printf("Unable to enable network outbound forwarding: %s", err)
+		return fmt.Errorf("Unable to enable network outbound forwarding: %s", err)
+	}
+	if len(output) != 0 {
+		log.Printf("Error enabling network outbound forwarding: %s", output)
+		return fmt.Errorf("Error enabling network outbound forwarding: %s", output)
+	}
+
+	inboundArgs := []string{"-A", "FORWARD", "-o", bridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	output, err = installRule(inboundArgs...)
+	if err != nil {
+		log.Printf("Unable to enable network inbound forwarding: %s", err)
+		return fmt.Errorf("Unable to enable network inbound forwarding: %s", err)
+	}
+	if len(output) != 0 {
+		log.Printf("Error enabling network inbound forwarding: %s")
+		return fmt.Errorf("Error enabling network inbound forwarding: %s", output)
+	}
+	return nil
+}
+
+func installRule(args ...string) ([]byte, error) {
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		log.Printf("iptables not found")
+		return nil, errors.New("iptables not found")
+	}
+
+	output, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil {
+		log.Printf("iptables argh")
+		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
+	}
+
+	return output, err
 }

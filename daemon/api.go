@@ -67,13 +67,17 @@ func createRouter(d *Daemon) *mux.Router {
 			"/configuration":       getConfiguration,
 			"/connections":         getConnections,
 			"/connections/{id:.*}": getConnection,
+			"/networks":            getNetworks,
+			"/network/{id:.*}":     getNetwork,
 		},
 		"POST": {
 			"/configuration": setConfiguration,
 			"/connections":   createConnection,
+			"/networks":      createNetwork,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
+			"/networks/{id:.*}":    deleteNetwork,
 		},
 	}
 
@@ -169,4 +173,20 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
 	return nil
+}
+
+func getNetworks(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+}
+
+func getNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+}
+
+func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+}
+
+func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	return &apiError{http.StatusNotImplemented, "Not Implemented"}
 }

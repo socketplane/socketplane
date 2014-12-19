@@ -14,9 +14,9 @@ const DefaultNetworkName = "default"
 const vlanCount = 4096
 
 type Network struct {
-	ID     string
-	Subnet *net.IPNet
-	Vlan   uint
+	ID     string     `json:"id"`
+	Subnet *net.IPNet `json:"subnet"`
+	Vlan   uint       `json:"vlan"`
 }
 
 var vlanArray []byte

@@ -1,30 +1,114 @@
-#!/bin/bash
+#!/bin/sh
 # Temporary wrapper for OVS until native Docker integration is available upstream
-
 set -e
 
+usage() {
+    cat << EOF
+NAME:
+    socketplane - Install, Configure and Run SocketPlane
+
+VERSION:
+    0.1
+
+USAGE:
+    $0 <command> [command_options] [arguments...]
+
+COMMANDS:
+    help
+            Help and usage
+
+    install
+            Install SocketPlane (installs docker and openvswitch)
+
+    uninstall
+            Remove Socketplane installation
+
+    clean
+            Remove Socketplane installation and dependencies (docker and openvswitch)
+
+    deps
+            Show SocketPlane dependencies
+
+    logs
+            Show SocketPlane container logs
+
+    info [container_id]
+            Show SocketPlane info for all containers, or for a given container_id
+
+    run [--network foo] <docker_run_args>
+            Run a container and optionally specify which network to attach to
+
+    start <container_id>
+            Start a <container_id>
+
+    stop <container_id>
+            Stop the <container_id>
+
+    rm <container_id>
+            Remove the <container_id>
+
+    network list
+            List all created networks
+
+    network info <name>
+            Display information about a given network
+
+    network create <name> [cidr]
+            Create a network
+
+    network delete <name> [cidr]
+            Delete a network
+
+EOF
+}
+
+# Utility function to test if a command exists
 command_exists() {
     hash $@ 2>/dev/null
 }
 
+# Colorized Command Output
 puts_command() {
-    echo -e "\033[0;32m$@ \033[0m"
+    printf "\033[0;32m$@ \033[0m\n"
 }
 
 puts_step() {
-    echo -e "\033[1;33m-----> $@ \033[0m"
+    printf "\033[1;33m-----> $@ \033[0m\n"
 }
 
 puts_warn() {
-    echo -e "\033[0;31m ! $@ \033[0m"
+    printf "\033[0;31m ! $@ \033[0m\n"
 }
 
+# Operating System Check Utility
 check_supported_os() {
     puts_step "Detected Linux distribution: $OS $ARCH"
     if ! echo $OS | grep -E 'Ubuntu|Debian|Fedora|RedHat' > /dev/null; then
         puts_warn "Supported operating systems are: Ubuntu, Debian and Fedora."
         exit 1
     fi
+}
+
+# Utility function to attach a port to a network namespace
+attach()    # OVS Port ID
+            # IP Address
+            # Subnet
+            # MAC Address
+            # Gateway IP
+            # Namespace PID
+{
+    # see: https://docs.docker.com/articles/networking/
+
+    [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
+    [ -f /var/run/netns/$6 ] && rm -f /var/run/netns/$6
+    ln -s /proc/$6/ns/net /var/run/netns/$6
+
+    ip link set dev $1 netns $6
+    ip netns exec $6 ip link set dev $1 address $4
+    ip netns exec $6 ip link set dev $1 up
+    ip netns exec $6 ip addr add $2$3 dev $1
+    ip netns exec $6 ip route add default via $5
+
 }
 
 get_status() {
@@ -68,8 +152,8 @@ get_status() {
     fi
 }
 
-show_reqs() {
-    echo "Socketplane  Docker Host Requirnments:"
+deps() {
+    echo "Socketplane  Docker Host Requirements:"
     echo ".. Open vSwitch Environment:"
     echo ".... Archicture:              amd64 or i386"
     echo "....   Current:               $ARCH"
@@ -108,13 +192,16 @@ verify_ovs() {
     fi
 
     # Make sure the processes are started
-    if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
-        if $(service openvswitch-switch status | grep "stop"); then
-            service openvswitch-switch start
-        fi
-    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        systemctl start openvswitch.service
-    fi
+    case "$OS" in
+        Debian|Ubuntu)
+            if $(service openvswitch-switch status | grep "stop"); then
+                service openvswitch-switch start
+            fi
+            ;;
+        Fedora|RedHat)
+            systemctl start openvswitch.service
+            ;;
+    esac
 
     sleep 1
     puts_step "Setting OVSDB Listener"
@@ -122,13 +209,17 @@ verify_ovs() {
 }
 
 install_ovs() {
-        puts_step  "Installing Open vSwitch.."
-    if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
-        apt-get -y install openvswitch-switch > /dev/null
-    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        yum -q -y install openvswitch
-        systemctl start openvswitch.service
-    fi
+    puts_step  "Installing Open vSwitch.."
+    case $OS in
+        Debian|Ubuntu)
+            apt-get -y install openvswitch-switch > /dev/null
+            ;;
+        Fedora|RedHat)
+            yum -q -y install openvswitch
+            systemctl start openvswitch.service
+            ;;
+    esac
+
     sleep 1
     ovs-vsctl set-manager ptcp:6640
     sleep 1
@@ -136,19 +227,25 @@ install_ovs() {
 
 remove_ovs() {
     puts_step "Removing existing Open vSwitch packages:"
-    if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
-        apt-get -y remove openvswitch-switch > /dev/null
-    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        yum -q -y remove openvswitch
-    fi
+    case $OS in
+        Debian|Ubuntu)
+            apt-get -y remove openvswitch-switch > /dev/null
+            ;;
+        Fedora|RedHat)
+            yum -q -y remove openvswitch
+            ;;
+    esac
 }
 
 verify_docker() {
     if ! command_exists docker; then
         puts_warn "Docker is not installed. Installing now..."
-        if [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-            yum -q -y remove docker > /dev/null
-        fi
+        case $OS in
+            Fedora|RedHat)
+                yum -q -y remove docker > /dev/null
+                ;;
+        esac
+
         if test -x "$(which curl 2>/dev/null)" ; then
             curl -sSL https://get.docker.com/ | sh
         elif test -x "$(which wget 2>/dev/null)" ; then
@@ -156,13 +253,16 @@ verify_docker() {
         fi
     fi
 
-    if [ $OS == "Debian" ] || [ $OS == 'Ubuntu' ]; then
-        if $(service docker status | grep "stop"); then
-            service docker start
-        fi
-    elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
-        systemctl start docker.service
-    fi
+    case $OS in
+        Debian|Ubuntu)
+            if $(service docker.io status | grep "stop"); then
+                service docker.io start
+            fi
+            ;;
+        Fedora|RedHat)
+            systemctl start docker.service
+            ;;
+    esac
 }
 
 start_socketplane() {
@@ -173,7 +273,7 @@ start_socketplane() {
         return 1
     fi
 
-    if [ "$1" == "unattended" ]; then
+    if [ "$1" = "unattended" ]; then
         [ -z $DOCKERHUB_USER ] && puts-warn "DOCKERHUB_USER not set" && exit 1
         [ -z $DOCKERHUB_PASS ] && puts-warn "DOCKERHUB_PASS not set" && exit 1
         [ -z $DOCKERHUB_MAIL ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
@@ -287,38 +387,26 @@ logs() {
     sudo docker logs $(cat /var/run/socketplane/cid)
 }
 
+info() {
+    containerId=$1
+    if [ -z "$containerId" ]; then
+        curl -s -X GET http://localhost:6675/v0.1/connections | python -m json.tool
+    else
+        curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+    fi
+}
+
 run() {
     cid=$(sudo docker run --net=none $@)
     cPid=$(sudo docker inspect --format='{{ .State.Pid }}' $cid)
     cName=$(sudo docker inspect --format='{{ .Name }}' $cid)
 
-    result=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\" }" | sed 's/[,{}]/\'$'\n/g' | sed 's/^".*":"\(.*\)"$/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
+    json=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\" }")
+    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
 
     attach $result $cPid
 
     echo $cid
-}
-
-attach() {
-    # $1 = OVS Port ID
-    # $2 = IP Address
-    # $3 = Subnet
-    # $4 = MAC Address
-    # $5 = Gateway IP
-    # $6 = Namespace PID
-
-    # see: https://docs.docker.com/articles/networking/
-
-    [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
-    [ -f /var/run/netns/$6 ] && rm -f /var/run/netns/$6
-    ln -s /proc/$6/ns/net /var/run/netns/$6
-
-    ip link set dev $1 netns $6
-    ip netns exec $6 ip link set dev $1 address $4
-    ip netns exec $6 ip link set dev $1 up
-    ip netns exec $6 ip addr add $2$3 dev $1
-    ip netns exec $6 ip route add default via $5
-
 }
 
 delete() {
@@ -329,46 +417,34 @@ delete() {
     find -L /var/run/netns -type l -delete
 }
 
-info() {
-    containerId=$1
-    if [ -z "$containerId" ]; then
-        curl -s -X GET http://localhost:6675/v0.1/connections | python -m json.tool
-    else
-        curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
-    fi
+network_list() {
+    exit
 }
 
-usage() {
-    cat << EOF
-USAGE: $0 <command>
-
-Install and run SocketPlane. This will install Open vSwitch and  Docker, if required, then it will install the SocketPlane container.
-
-INSTALLATION COMMANDS:
-    socketplane help                        Help and usage
-    socketplane install                     Install SocketPlane (installs docker and openvswitch)
-    socketplane uninstall                   Remove Socketplane installation
-    socketplane clean                       Remove Socketplane installation and dependencies (docker and openvswitch)
-    socketplane show_reqs                   List all socketplane installation requirements
-    socketplane logs                        Show SocketPlane container logs
-    socketplane info [container_id]         Show SocketPlane info for all containers, or for a given container_id
-
-DOCKER WRAPPER COMMANDS:
-    socketplane run <args>              Run a container where <args> are the same as "docker run"
-    socketplane start <container_id>    Start a <container_id>
-    socketplane stop <container_id>     Stop the <container_id>
-    socketplane rm <container_id>       Remove the <container_id>
-EOF
+network_info() {
+    exit
 }
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root"
-  exit
+network_create() {
+    exit
+}
+
+network_delete() {
+    exit
+}
+
+# Run as root only
+if [ "$(id -u)" != "0" ]; then
+    puts_warn "Please run as root"
+    exit 1
 fi
 
 case "$1" in
+    help)
+        usage
+        ;;
     install)
-        shift 1
+        shift
         puts_command "Installing SocketPlane..."
         get_status
         check_supported_os
@@ -394,33 +470,54 @@ case "$1" in
         remove_socketplane
         puts_command "Done!!!"
         ;;
+    deps)
+        get_status
+        check_supported_os
+        deps
+        ;;
     logs)
         logs
         ;;
+    info)
+        shift
+        info $@
+        ;;
     run)
-        shift 1
+        shift
         run $@
         ;;
     stop)
-        shift 1
+        shift
         docker stop $@
         ;;
     start)
-        shift 1
+        shift
         docker start $@
         ;;
     rm)
-        shift 1
+        shift
         delete $@
         ;;
-    info)
-        shift 1
-        info $@
-        ;;
-    show_reqs)
-        get_status
-        check_supported_os
-        show_reqs
+    network)
+        shift
+        case "$1" in
+            list)
+                network_list
+                ;;
+            info)
+                network_info
+                ;;
+            create)
+                network_create
+                ;;
+            delete)
+                network_delete
+                ;;
+            *)
+                puts_warn "Unknown Command"
+                usage
+                exit 1
+        esac
         ;;
     agent)
         shift 1
@@ -433,6 +530,6 @@ case "$1" in
         ;;
     *)
         usage
+        exit 1
         ;;
 esac
-exit
