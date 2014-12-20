@@ -5,7 +5,7 @@ import (
 	"math"
 	"net"
 
-	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 

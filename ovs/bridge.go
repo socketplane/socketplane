@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 	"github.com/socketplane/socketplane/ipam"

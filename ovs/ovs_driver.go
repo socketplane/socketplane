@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 )
 
 var quit chan bool
 var update chan *libovsdb.TableUpdates
 var cache map[string]map[string]libovsdb.Row
-var log = logrus.New()
 
 func monitorDockerBridge(ovs *libovsdb.OvsdbClient) {
 	for {

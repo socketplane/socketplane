@@ -3,7 +3,7 @@ package daemon
 import (
 	"net"
 
-	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 	"github.com/socketplane/socketplane/datastore"
 	"github.com/socketplane/socketplane/ovs"
