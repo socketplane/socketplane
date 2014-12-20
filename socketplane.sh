@@ -122,14 +122,14 @@ verify_ovs() {
 }
 
 install_ovs() {
+        puts_step  "Installing Open vSwitch.."
     if [ "$OS" = "Ubuntu" ] || [ "$OS" = "Debian" ]; then
         apt-get -y install openvswitch-switch > /dev/null
     elif [ $OS == 'Fedora' ] || [ $OS == 'RedHat' ]; then
         yum -q -y install openvswitch
         systemctl start openvswitch.service
     fi
-
-    sleep 3
+    sleep 1
     ovs-vsctl set-manager ptcp:6640
     sleep 1
 }
@@ -168,7 +168,7 @@ verify_docker() {
 start_socketplane() {
     puts_step "Starting the SocketPlane container"
 
-    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
+    if [ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
         puts_warn "A SocketPlane container is already running"
         return 1
     fi
@@ -183,8 +183,10 @@ start_socketplane() {
 
         if [ "$BOOTSTRAP" == "true" ] ; then
             cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+            puts_step "A SocketPlane container was started"
         else
             cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+            puts_step "A SocketPlane container was started"
         fi
     else
 
@@ -199,10 +201,12 @@ start_socketplane() {
             case $yn in
                 [Yy]* )
                     cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+                    puts_step "A SocketPlane container was started"
                     break
                     ;;
                 [Nn]* )
                     cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+                    puts_step "A SocketPlane container was started"
                     break
                     ;;
                 * )
@@ -216,45 +220,24 @@ start_socketplane() {
 }
 
 start_socketplane_image() {
-    puts_step "Starting the SocketPlane container"
-
-    if [[ ! -n $(sudo docker images | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
-        echo "A Socketplane image was not found, please run \"socketplane install\""
-#        puts_warn "SocketPlane container is already running"
-        return 1
+    if ! command_exists docker; then
+        puts_warn "Docker is not installed, please run \"./socketplane install\""
+        exit 1
     fi
 
-    if [[ -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
-        echo "A SocketPlane container is already running"
-#        puts_warn "SocketPlane container is already running"
-        return 1
-    fi
-        while true; do
-            read -p "Is this the first node in the cluster? (y/n)" yn
-            case ${yn} in
-                [Yy]* )
-                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
-                    puts_command "Started SocketPlane Docker image"
-                    break
-                    ;;
-                [Nn]* )
-                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
-                    puts_command "Started SocketPlane Docker image"
-                    break
-                    ;;
-                * )
-                    echo "Please answer yes or no."
-                    ;;
-            esac
-        done
+    for IMAGE_ID in $(sudo docker ps -a | grep socketplane/socketplane | awk '{ print $1; }'); do
+            puts_step "Starting all SocketPlane containers $IMAGE_ID"
+        sudo docker start ${IMAGE_ID} > /dev/null
+    done
 
-    mkdir -p /var/run/socketplane
-    echo ${cid} > /var/run/socketplane/cid
+    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
+        puts_step  "All Socketplane agent containers are started."
+    fi
 }
 
 stop_socketplane_image() {
     if ! command_exists docker; then
-        puts_warn "Docker is not installed"
+        puts_warn "Docker is not installed, please run \"./socketplane install\""
         exit 1
     fi
 
@@ -262,6 +245,10 @@ stop_socketplane_image() {
             puts_step "Stopping the SocketPlane container $IMAGE_ID"
         sudo docker stop ${IMAGE_ID} > /dev/null
     done
+
+    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
+        puts_step  "All Socketplane agent containers are stopped. Please run \"./socketplane.sh start\" to start them again"
+    fi
 }
 
 stop_socketplane() {
@@ -276,6 +263,7 @@ stop_socketplane() {
         sleep 1
         sudo docker rm $IMAGE_ID > /dev/null
     done
+    puts_warn "SocketPlane container images was deleted. Run \"./socketplane.sh install\" to download a new one."
 }
 
 remove_socketplane() {
@@ -435,7 +423,6 @@ case "$1" in
         show_reqs
         ;;
     agent)
-#        check_supported_os
         shift 1
         if [ "$@" == "start" ]; then
             start_socketplane_image
