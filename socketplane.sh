@@ -59,6 +59,12 @@ COMMANDS:
     network delete <name> [cidr]
             Delete a network
 
+    network agent start
+            Starts an existing SocketPlane image if it is not already running
+
+    network agent stop
+            Stops a running SocketPlane image. This will not delete the local image
+
 EOF
 }
 
