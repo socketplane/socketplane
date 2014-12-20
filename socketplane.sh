@@ -330,7 +330,7 @@ start_socketplane_image() {
         sudo docker start ${IMAGE_ID} > /dev/null
     done
 
-    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
+    if [ -n "$(sudo docker ps | grep socketplane/socketplane | awk '{ print $1 }')" ]; then
         puts_step  "All Socketplane agent containers are started."
     fi
 }
@@ -342,11 +342,11 @@ stop_socketplane_image() {
     fi
 
     for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
-            puts_step "Stopping the SocketPlane container $IMAGE_ID"
+        puts_step "Stopping the SocketPlane container $IMAGE_ID"
         sudo docker stop ${IMAGE_ID} > /dev/null
     done
 
-    if [[ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]]; then
+    if [ -z $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1 }') ]; then
         puts_step  "All Socketplane agent containers are stopped. Please run \"./socketplane.sh start\" to start them again"
     fi
 }
@@ -521,9 +521,9 @@ case "$1" in
         ;;
     agent)
         shift 1
-        if [ "$@" == "start" ]; then
+        if [ "$@" = "start" ]; then
             start_socketplane_image
-        elif [ "$@" == "stop" ]; then
+        elif [ "$@" = "stop" ]; then
             stop_socketplane_image
         else puts_warn "\"socketplane agent\" options are {stop|start}"
         fi
