@@ -2,9 +2,9 @@ package network
 
 import (
 	"errors"
-	"log"
 	"net"
 
+	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
@@ -21,10 +21,14 @@ type Network struct {
 
 var vlanArray []byte
 var networkMap map[string]*Network
+var log = logrus.New()
 
 func init() {
 	vlanArray = make([]byte, vlanCount/8)
 	networkMap = make(map[string]*Network)
+	log.Formatter = new(logrus.JSONFormatter)
+	log.Level = logrus.DebugLevel
+
 }
 
 func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {

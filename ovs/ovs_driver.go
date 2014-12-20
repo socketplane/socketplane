@@ -3,15 +3,16 @@ package ovs
 import (
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 
+	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 )
 
 var quit chan bool
 var update chan *libovsdb.TableUpdates
 var cache map[string]map[string]libovsdb.Row
+var log = logrus.New()
 
 func monitorDockerBridge(ovs *libovsdb.OvsdbClient) {
 	for {
@@ -38,6 +39,8 @@ func monitorDockerBridge(ovs *libovsdb.OvsdbClient) {
 }
 
 func CreateOVSBridge(ovs *libovsdb.OvsdbClient, bridgeName string) error {
+	log.Formatter = new(logrus.JSONFormatter)
+	log.Level = logrus.DebugLevel
 	namedBridgeUuid := "bridge"
 	namedPortUuid := "port"
 	namedIntfUuid := "intf"

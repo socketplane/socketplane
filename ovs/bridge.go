@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 	"github.com/socketplane/socketplane/ipam"
@@ -43,6 +43,8 @@ var gatewayAddrs = []string{
 const mtu = 1514
 const defaultBridgeName = "docker0-ovs"
 
+var log = logrus.New()
+
 type Bridge struct {
 	Name   string
 	IP     net.IP
@@ -54,6 +56,8 @@ var OvsBridge Bridge = Bridge{Name: defaultBridgeName}
 var ovs *libovsdb.OvsdbClient
 
 func init() {
+	log.Formatter = new(logrus.JSONFormatter)
+	log.Level = logrus.DebugLevel
 	var err error
 	ovs, err = ovs_connect()
 	if err != nil {

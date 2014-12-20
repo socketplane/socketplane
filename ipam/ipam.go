@@ -2,10 +2,10 @@ package ipam
 
 import (
 	"errors"
-	"log"
 	"math"
 	"net"
 
+	"github.com/socketplane/docker/vendor/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
@@ -13,6 +13,8 @@ import (
 // Key = subnet, Value = Bit Array of available ip-addresses in a given subnet
 
 const dataStore = "ipam"
+
+var log = logrus.New()
 
 func Request(subnet net.IPNet) net.IP {
 	bits := bitCount(subnet)
@@ -144,6 +146,8 @@ func testAndSetBit(a []byte) uint {
 
 // Lame implementation. Deprecate favoring Request function
 func GetAnAddress(subnet string) (string, error) {
+	log.Formatter = new(logrus.JSONFormatter)
+	log.Level = logrus.DebugLevel
 	addrArray, _, ok := ecc.Get(dataStore, subnet)
 	currVal := make([]byte, len(addrArray))
 	copy(currVal, addrArray)

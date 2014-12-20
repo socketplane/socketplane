@@ -1,7 +1,6 @@
 package ipam
 
 import (
-	"log"
 	"net"
 	"testing"
 
@@ -92,7 +91,7 @@ func TestGetIpDeprecated(t *testing.T) {
 	for i := 1; i < 250; i++ {
 		addressStr, err := GetAnAddress("192.167.1.0/24")
 		if err != nil {
-			log.Println(err)
+			t.Log(err)
 			t.Fatal(err)
 		}
 		address := net.ParseIP(addressStr).To4()
