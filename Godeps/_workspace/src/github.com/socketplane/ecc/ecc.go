@@ -97,7 +97,6 @@ func Leave() error {
 
 // Execute function is borrowed from Consul's main.go
 func Execute(args ...string) int {
-	log.SetOutput(ioutil.Discard)
 
 	for _, arg := range args {
 		if arg == "-v" || arg == "--version" {
