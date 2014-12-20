@@ -56,8 +56,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   # Boxes for testing installer
-  config.vm.define "ubuntu", autostart: false do |ubuntu|
+  config.vm.define "ubuntu-lts", autostart: false do |ubuntu|
     ubuntu.vm.box = "chef/ubuntu-14.04"
+    ubuntu.vm.hostname = "ubuntu"
+    ubuntu.vm.network :private_network, ip: "10.254.102.10"
+    ubuntu.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+    end
+    #ubuntu.vm.provision :shell, inline: $ubuntu
+  end
+    config.vm.define "ubuntu", autostart: false do |ubuntu|
+    ubuntu.vm.box = "chef/ubuntu-14.10"
     ubuntu.vm.hostname = "ubuntu"
     ubuntu.vm.network :private_network, ip: "10.254.102.10"
     ubuntu.vm.provider :virtualbox do |vb|
