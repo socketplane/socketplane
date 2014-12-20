@@ -281,7 +281,7 @@ start_socketplane() {
 
         sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
-        if [ "$BOOTSTRAP" == "true" ] ; then
+        if [ "$BOOTSTRAP" = "true" ] ; then
             cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
             puts_step "A SocketPlane container was started"
         else
