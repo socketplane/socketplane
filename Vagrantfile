@@ -59,7 +59,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "ubuntu", autostart: false do |ubuntu|
     ubuntu.vm.box = "chef/ubuntu-14.04"
     ubuntu.vm.hostname = "ubuntu"
-    ubuntu.vm.network :private_network, ip: "10.254.101.10", virtualbox__intnet: true
+    ubuntu.vm.network :private_network, ip: "10.254.102.10"
     ubuntu.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
@@ -68,7 +68,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "centos", autostart: false do |centos|
     centos.vm.box = "chef/centos-7"
     centos.vm.hostname = "centos"
-    centos.vm.network :private_network, ip: "10.254.101.11", virtualbox__intnet: true
+    centos.vm.network :private_network, ip: "10.254.102.11"
     centos.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
@@ -77,7 +77,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "fedora", autostart: false do |fedora|
     fedora.vm.box = "chef/fedora-20"
     fedora.vm.hostname = "fedora"
-    fedora.vm.network :private_network, ip: "10.254.101.12", virtualbox__intnet: true
+    fedora.vm.network :private_network, ip: "10.254.102.12"
     fedora.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
