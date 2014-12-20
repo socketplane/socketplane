@@ -17,7 +17,7 @@ COMMANDS:
     help
             Help and usage
 
-    install
+    install [unattended]
             Install SocketPlane (installs docker and openvswitch)
 
     uninstall
@@ -274,10 +274,10 @@ start_socketplane() {
     fi
 
     if [ "$1" = "unattended" ]; then
-        [ -z $DOCKERHUB_USER ] && puts-warn "DOCKERHUB_USER not set" && exit 1
-        [ -z $DOCKERHUB_PASS ] && puts-warn "DOCKERHUB_PASS not set" && exit 1
-        [ -z $DOCKERHUB_MAIL ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
-        [ -z $BOOTSTRAP ] && puts-warn "DOCKERHUB_EMAIL not set" && exit 1
+        [ -z $DOCKERHUB_USER ] && puts_warn "DOCKERHUB_USER not set" && exit 1
+        [ -z $DOCKERHUB_PASS ] && puts_warn "DOCKERHUB_PASS not set" && exit 1
+        [ -z $DOCKERHUB_MAIL ] && puts_warn "DOCKERHUB_MAIL not set" && exit 1
+        [ -z $BOOTSTRAP ] && puts_warn "BOOTSTRAP not set" && exit 1
 
         sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
