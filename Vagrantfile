@@ -16,7 +16,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update > /dev/null
 echo ====> Installing Packages
 apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch
-ln -s /vagrant/socketplane.sh /usr/bin/socketplane
+ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -27,7 +27,7 @@ yum -qy update
 echo ====> Installing Packages
 yum -qy remove docker
 yum -qy install docker-io openvswitch
-ln -s /vagrant/socketplane.sh /usr/bin/socketplane
+ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT

@@ -59,35 +59,17 @@ COMMANDS:
     network delete <name> [cidr]
             Delete a network
 
+    network agent start
+            Starts an existing SocketPlane image if it is not already running
+
+    network agent stop
+            Stops a running SocketPlane image. This will not delete the local image
+
 EOF
 }
 
-# Utility function to test if a command exists
-command_exists() {
-    hash $@ 2>/dev/null
-}
-
-# Colorized Command Output
-puts_command() {
-    printf "\033[0;32m$@ \033[0m\n"
-}
-
-puts_step() {
-    printf "\033[1;33m-----> $@ \033[0m\n"
-}
-
-puts_warn() {
-    printf "\033[0;31m ! $@ \033[0m\n"
-}
-
-# Operating System Check Utility
-check_supported_os() {
-    puts_step "Detected Linux distribution: $OS $ARCH"
-    if ! echo $OS | grep -E 'Ubuntu|Debian|Fedora|RedHat' > /dev/null; then
-        puts_warn "Supported operating systems are: Ubuntu, Debian and Fedora."
-        exit 1
-    fi
-}
+basedir=$(dirname $(readlink -m $0))
+. $basedir/functions.sh
 
 # Utility function to attach a port to a network namespace
 attach()    # OVS Port ID
@@ -158,7 +140,7 @@ deps() {
     echo ".... Archicture:              amd64 or i386"
     echo "....   Current:               $ARCH"
     echo ".... Operating System:         Ubuntu, Debian and Fedora"
-    echo "....   Current:               $OS"
+    echo "....   Current:               $lsb_dist"
     echo ".... Open vSwitch Version:     2.1 or higher"
     echo "....   Current:               $OVS_SVER"
     echo ".. Docker Environment:"
@@ -169,6 +151,7 @@ deps() {
 }
 
 kernel_opts(){
+    log_step "Setting Linux Kernel Options"
     if [ $(cat /etc/sysctl.conf | grep icmp_echo_ignore_broadcasts) ]; then
         sed -i 's/^#\?net\.ipv4\.icmp_echo_ignore_broadcasts.*$/net\.ipv4\.icmp_echo_ignore_broadcasts=0/g' /etc/sysctl.conf
     else
@@ -180,114 +163,111 @@ kernel_opts(){
     else
         echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
     fi
-    sysctl -p
+    sysctl -p | indent
 }
 
-verify_ovs() {
-    if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
-        puts_step "OVS already installed"
+pkg_update() {
+    log_step "Ensuring Package Repositories are up to date"
+    $pkg update > /dev/null
+}
+
+install_curl() {
+    if command_exists curl; then
+        log_step "Curl already installed!"
     else
-        puts_warn "OVS was not found in the current path, installing now.."
-        install_ovs
+        log_step "Installing Curl"
+        $pkg install curl | indent
+    fi
+}
+
+install_ovs() {
+    if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
+        log_step "Open vSwitch already installed!"
+    else
+        log_step "Installing Open vSwitch.."
+        $pkg install $ovs | indent
     fi
 
     # Make sure the processes are started
-    case "$OS" in
-        Debian|Ubuntu)
+    case "$lsb_dist" in
+        debian|ubuntu)
             if $(service openvswitch-switch status | grep "stop"); then
                 service openvswitch-switch start
             fi
             ;;
-        Fedora|RedHat)
+        fedora)
             systemctl start openvswitch.service
             ;;
     esac
 
     sleep 1
-    puts_step "Setting OVSDB Listener"
+    log_step "Setting OVSDB Listener"
     ovs-vsctl set-manager ptcp:6640
-}
-
-install_ovs() {
-    puts_step  "Installing Open vSwitch.."
-    case $OS in
-        Debian|Ubuntu)
-            apt-get -y install openvswitch-switch > /dev/null
-            ;;
-        Fedora|RedHat)
-            yum -q -y install openvswitch
-            systemctl start openvswitch.service
-            ;;
-    esac
-
-    sleep 1
-    ovs-vsctl set-manager ptcp:6640
-    sleep 1
 }
 
 remove_ovs() {
-    puts_step "Removing existing Open vSwitch packages:"
-    case $OS in
-        Debian|Ubuntu)
-            apt-get -y remove openvswitch-switch > /dev/null
-            ;;
-        Fedora|RedHat)
-            yum -q -y remove openvswitch
-            ;;
-    esac
+    log_step "Removing existing Open vSwitch packages..."
+    $pkg remove $ovs
 }
 
-verify_docker() {
-    if ! command_exists docker; then
-        puts_warn "Docker is not installed. Installing now..."
-        case $OS in
-            Fedora|RedHat)
-                yum -q -y remove docker > /dev/null
+install_docker() {
+    if command_exists docker; then
+        log_step "Docker already installed!"
+    else
+        log_step "Installing Docker..."
+        case $lsb_dist in
+            fedora)
+                $pkg remove docker > /dev/null
                 ;;
         esac
 
-        if test -x "$(which curl 2>/dev/null)" ; then
+        if command_exists curl; then
             curl -sSL https://get.docker.com/ | sh
-        elif test -x "$(which wget 2>/dev/null)" ; then
+        elif command_exists wget; then
             wget -qO- https://get.docker.com/ | sh
         fi
     fi
 
-    case $OS in
-        Debian|Ubuntu)
-            if $(service docker.io status | grep "stop"); then
-                service docker.io start
+    case $lsb_dist in
+        debian|ubuntu)
+            if [ -f /etc/init.d/docker ]; then
+                if $(service docker status | grep "stop"); then
+                    service docker start
+                fi
+            else
+                if $(service docker.io status | grep "stop"); then
+                    service docker.io start
+                fi
             fi
             ;;
-        Fedora|RedHat)
+        fedora)
             systemctl start docker.service
             ;;
     esac
 }
 
 start_socketplane() {
-    puts_step "Starting the SocketPlane container"
+    log_step "Starting the SocketPlane container"
 
-    if [ ! -n $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }') ]; then
-        puts_warn "A SocketPlane container is already running"
+    if [ -n "$(sudo docker ps | grep socketplane/socketplane | awk '{ print $1 }')" ]; then
+        log_fatal "A SocketPlane container is already running"
         return 1
     fi
 
     if [ "$1" = "unattended" ]; then
-        [ -z $DOCKERHUB_USER ] && puts_warn "DOCKERHUB_USER not set" && exit 1
-        [ -z $DOCKERHUB_PASS ] && puts_warn "DOCKERHUB_PASS not set" && exit 1
-        [ -z $DOCKERHUB_MAIL ] && puts_warn "DOCKERHUB_MAIL not set" && exit 1
-        [ -z $BOOTSTRAP ] && puts_warn "BOOTSTRAP not set" && exit 1
+        [ -z $DOCKERHUB_USER ] && log_fatal "DOCKERHUB_USER not set" && exit 1
+        [ -z $DOCKERHUB_PASS ] && log_fatal "DOCKERHUB_PASS not set" && exit 1
+        [ -z $DOCKERHUB_MAIL ] && log_fatal "DOCKERHUB_MAIL not set" && exit 1
+        [ -z $BOOTSTRAP ] && log_fatal "BOOTSTRAP not set" && exit 1
 
         sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
         if [ "$BOOTSTRAP" = "true" ] ; then
             cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
-            puts_step "A SocketPlane container was started"
         else
             cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
-            puts_step "A SocketPlane container was started"
         fi
+
     else
 
         # The following will prompt for:
@@ -301,12 +281,10 @@ start_socketplane() {
             case $yn in
                 [Yy]* )
                     cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
-                    puts_step "A SocketPlane container was started"
                     break
                     ;;
                 [Nn]* )
                     cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
-                    puts_step "A SocketPlane container was started"
                     break
                     ;;
                 * )
@@ -315,73 +293,85 @@ start_socketplane() {
             esac
         done
     fi
+
+    if [ -n "$cid" ]; then
+        log_info "A SocketPlane container was started" | indent
+    else
+        log_fatal "Error starting the SocketPlane container"
+        exit 1
+    fi
+
     mkdir -p /var/run/socketplane
     echo $cid > /var/run/socketplane/cid
 }
 
 start_socketplane_image() {
+    log_step "Starting SocketPlane Agent"
     if ! command_exists docker; then
-        puts_warn "Docker is not installed, please run \"./socketplane install\""
+        log_fatal "Docker is not installed, please run \"./socketplane install\""
         exit 1
     fi
 
     for IMAGE_ID in $(sudo docker ps -a | grep socketplane/socketplane | awk '{ print $1; }'); do
-            puts_step "Starting all SocketPlane containers $IMAGE_ID"
+        log_info "Starting container $IMAGE_ID" | indent
         sudo docker start ${IMAGE_ID} > /dev/null
     done
 
     if [ -n "$(sudo docker ps | grep socketplane/socketplane | awk '{ print $1 }')" ]; then
-        puts_step  "All Socketplane agent containers are started."
+        log_info  "All Socketplane agent containers are started."
     fi
 }
 
 stop_socketplane_image() {
+    log_step "Stopping SocketPlane Agent"
     if ! command_exists docker; then
-        puts_warn "Docker is not installed, please run \"./socketplane install\""
+        log_fatal "Docker is not installed, please run \"./socketplane install\""
         exit 1
     fi
 
     for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
-        puts_step "Stopping the SocketPlane container $IMAGE_ID"
+        log_info "Stopping the SocketPlane container $IMAGE_ID" | indent
         sudo docker stop ${IMAGE_ID} > /dev/null
     done
 
     if [ -z $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1 }') ]; then
-        puts_step  "All Socketplane agent containers are stopped. Please run \"./socketplane.sh start\" to start them again"
+        log_info "All Socketplane agent containers are stopped. Please run \"./socketplane.sh start\" to start them again"
     fi
 }
 
 stop_socketplane() {
+    log_step "Stopping SocketPlane Agent"
     if ! command_exists docker; then
-        puts_warn "Docker is not installed"
+        log_fatal "Docker is not installed"
         exit 1
     fi
 
     for IMAGE_ID in $(sudo docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
-        echo "Removing socketplane image: $IMAGE_ID"
+        log_info "Stopping socketplane container: $IMAGE_ID" | indent
         sudo docker stop $IMAGE_ID > /dev/null
         sleep 1
+        log_info "Removing socketplane container: $IMAGE_ID" | indent
         sudo docker rm $IMAGE_ID > /dev/null
     done
-    puts_warn "SocketPlane container images was deleted. Run \"./socketplane.sh install\" to download a new one."
+    log_info "SocketPlane container deleted" | indent
 }
 
 remove_socketplane() {
-    puts_step "Removing the SocketPlane container image"
+    log_step "Removing the SocketPlane container image"
     if ! command_exists docker; then
-        puts_warn "Docker is not installed"
+        log_fatal "Docker is not installed"
         exit 1
     fi
 
     for IMAGE_ID in $(sudo docker images | grep socketplane/socketplane | awk '{ print $1; }'); do
-        echo "Removing socketplane image: $IMAGE_ID"
-       sudo docker rmi $IMAGE_ID > /dev/null
+        log_info "Removing socketplane image: $IMAGE_ID" | indent
+        sudo docker rmi $IMAGE_ID > /dev/null
     done
 }
 
 logs() {
     if [ ! -f /var/run/socketplane/cid ] || [ -z $(cat /var/run/socketplane/cid) ]; then
-        puts_warn "SocketPlane container is not running"
+        log_fatal "SocketPlane container is not running"
         exit 1
     fi
     sudo docker logs $(cat /var/run/socketplane/cid)
@@ -435,9 +425,50 @@ network_delete() {
 
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
-    puts_warn "Please run as root"
+    log_fatal "Please run as root"
     exit 1
 fi
+
+# perform some very rudimentary platform detection
+lsb_dist=''
+if command_exists lsb_release; then
+    lsb_dist="$(lsb_release -si)"
+fi
+if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
+    lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
+fi
+if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
+    lsb_dist='debian'
+fi
+if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
+    lsb_dist='fedora'
+fi
+if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
+    lsb_dist="$(. /etc/os-release && echo "$ID")"
+fi
+
+lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+if [ -z lsb_dist ]; then
+    log_fatal "Operating System could not be detected"
+    exit 1
+fi
+
+if [ -z "$(echo "$lsb_dist" | grep -E 'ubuntu|debian|fedora')" ]; then
+    log_fatal "Operating System $lsb_dist is not yet supported. Please contact support@socketplane.io"
+    exit 1
+fi
+
+case "$lsb_dist" in
+    debian|ubuntu)
+        pkg="apt-get -q -y"
+        ovs="openvswitch-switch"
+        ;;
+    fedora)
+        pkg="yum -q -y"
+        ovs="openvswitch"
+        ;;
+esac
 
 case "$1" in
     help)
@@ -445,34 +476,30 @@ case "$1" in
         ;;
     install)
         shift
-        puts_command "Installing SocketPlane..."
-        get_status
-        check_supported_os
+        log_notice "Installing SocketPlane..."
         kernel_opts
-        verify_ovs
-        verify_docker
-        start_socketplane $@
-        puts_command "Done!!!"
+        #pkg_update
+        install_curl
+        install_ovs
+        install_docker
+        start_socketplane
+        log_notice "Done!!!"
         ;;
     uninstall)
-        puts_command "Uninstalling SocketPlane..."
-        get_status
-        check_supported_os
+        log_notice "Uninstalling SocketPlane..."
         stop_socketplane
-        puts_command "Done!!!"
+        log_notice "Done!!!"
         ;;
     clean)
-        puts_command "Removing SocketPlane and all its dependencies..."
+        log_notice "Removing SocketPlane and all its dependencies..."
         get_status
-        check_supported_os
         remove_ovs
         stop_socketplane
         remove_socketplane
-        puts_command "Done!!!"
+        log_notice "Done!!!"
         ;;
     deps)
         get_status
-        check_supported_os
         deps
         ;;
     info)
@@ -511,7 +538,7 @@ case "$1" in
                 network_delete
                 ;;
             *)
-                puts_warn "Unknown Command"
+                log_fatal "Unknown Command"
                 usage
                 exit 1
         esac
@@ -529,7 +556,8 @@ case "$1" in
                 logs
                 ;;
             *)
-                puts_warn "\"socketplane agent\" {stop|start|logs}"
+                log_fatal "\"socketplane agent\" {stop|start|logs}"
+                exit 1
                 ;;
         esac
         ;;
