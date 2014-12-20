@@ -29,8 +29,8 @@ COMMANDS:
     deps
             Show SocketPlane dependencies
 
-    logs
-            Show SocketPlane container logs
+    agent {stop|start|logs}
+            Start/Stop the SocketPlane container or show its logs
 
     info [container_id]
             Show SocketPlane info for all containers, or for a given container_id
@@ -475,9 +475,6 @@ case "$1" in
         check_supported_os
         deps
         ;;
-    logs)
-        logs
-        ;;
     info)
         shift
         info $@
@@ -521,12 +518,20 @@ case "$1" in
         ;;
     agent)
         shift 1
-        if [ "$@" = "start" ]; then
-            start_socketplane_image
-        elif [ "$@" = "stop" ]; then
-            stop_socketplane_image
-        else puts_warn "\"socketplane agent\" options are {stop|start}"
-        fi
+        case "$1" in
+            start)
+                start_socketplane_image
+                ;;
+            stop)
+                stop_socketplane_image
+                ;;
+            logs)
+                logs
+                ;;
+            *)
+                puts_warn "\"socketplane agent\" {stop|start|logs}"
+                ;;
+        esac
         ;;
     *)
         usage
