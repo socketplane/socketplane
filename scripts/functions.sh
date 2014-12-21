@@ -31,7 +31,7 @@ log_debug() {
 }
 
 log_step() {
-    log_notice "-----> $@"
+    log_info "-----> $@"
 }
 
 indent() {
