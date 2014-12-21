@@ -1,92 +1,112 @@
 package network
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 
-	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
-const dataStore = "network"
+const networkStore = "network"
+const vlanStore = "vlan"
 const DefaultNetworkName = "default"
 
 const vlanCount = 4096
 
 type Network struct {
-	ID     string     `json:"id"`
-	Subnet *net.IPNet `json:"subnet"`
-	Vlan   uint       `json:"vlan"`
+	ID     string `json:"id"`
+	Subnet string `json:"subnet"`
+	Vlan   uint   `json:"vlan"`
 }
 
-var vlanArray []byte
-var networkMap map[string]*Network
-
-func init() {
-	vlanArray = make([]byte, vlanCount/8)
-	networkMap = make(map[string]*Network)
+func GetNetwork(id string) (*Network, error) {
+	netByteArray, _, ok := ecc.Get(networkStore, id)
+	if ok {
+		network := &Network{}
+		err := json.Unmarshal(netByteArray, network)
+		if err != nil {
+			return nil, err
+		}
+		return network, nil
+	}
+	return nil, errors.New("Network unavailable")
 }
 
 func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
-	storeSubnet, _, ok := ecc.Get(dataStore, id)
-	if ok {
-		if subnet.String() != string(storeSubnet[:]) {
-			return nil, errors.New("Network mismatch")
-		}
-		return networkFromLocalCache(id, subnet), nil
+	network, err := GetNetwork(id)
+	if err == nil {
+		return network, nil
 	}
-	eccerr := ecc.Put(dataStore, id, []byte(subnet.String()), nil)
+	vlan, err := allocateVlan()
+	if err != nil {
+		return nil, err
+	}
+	network = &Network{id, subnet.String(), vlan}
+	data, err := json.Marshal(network)
+	if err != nil {
+		return nil, err
+	}
+	eccerr := ecc.Put(networkStore, id, data, nil)
 	if eccerr == ecc.OUTDATED {
+		releaseVlan(vlan)
 		return CreateNetwork(id, subnet)
 	}
-	return networkFromLocalCache(id, subnet), nil
+	return network, nil
 }
 
 func DeleteNetwork(id string) error {
-	eccerror := ecc.Delete(dataStore, id)
+	network, err := GetNetwork(id)
+	if err != nil {
+		return err
+	}
+	eccerror := ecc.Delete(networkStore, id)
 	if eccerror == ecc.OK {
-		removeNetworkFromLocalCache(id)
+		releaseVlan(network.Vlan)
 		return nil
 	}
 	return errors.New("Error deleting network")
-}
-
-func GetNetwork(id string) *Network {
-	return networkMap[id]
 }
 
 func CreateDefaultNetwork(subnet *net.IPNet) (*Network, error) {
 	return CreateNetwork(DefaultNetworkName, subnet)
 }
 
-func GetDefaultNetwork() *Network {
+func GetDefaultNetwork() (*Network, error) {
 	return GetNetwork(DefaultNetworkName)
 }
 
-func networkFromLocalCache(id string, subnet *net.IPNet) *Network {
-	if network, ok := networkMap[id]; ok {
-		log.Debug("Network from local cache", *network)
-		return network
+func allocateVlan() (uint, error) {
+	vlanArray, _, ok := ecc.Get(vlanStore, "vlan")
+	currVal := make([]byte, vlanCount/8)
+	copy(currVal, vlanArray)
+	if !ok {
+		vlanArray = make([]byte, vlanCount/8)
 	}
 	vlan := testAndSetBit(vlanArray)
 	if vlan >= vlanCount {
-		log.Debug("No more vlan for ", id)
-		return nil
+		return vlanCount, errors.New("Vlan unavailable")
 	}
-	network := Network{id, subnet, vlan}
-	networkMap[id] = &network
-	log.Debug("Network created in local cache", network)
-	return networkMap[id]
+	eccerr := ecc.Put(vlanStore, "vlan", vlanArray, currVal)
+	if eccerr == ecc.OUTDATED {
+		return allocateVlan()
+	}
+	return vlan, nil
 }
 
-func removeNetworkFromLocalCache(id string) {
-	if _, ok := networkMap[id]; !ok {
-		return
+func releaseVlan(vlan uint) {
+	vlanArray, _, ok := ecc.Get(vlanStore, "vlan")
+	currVal := make([]byte, vlanCount/8)
+	copy(currVal, vlanArray)
+	if !ok {
+		vlanArray = make([]byte, vlanCount/8)
 	}
-	clearBit(vlanArray, networkMap[id].Vlan)
-	delete(networkMap, id)
+	clearBit(vlanArray, vlan-1)
+	eccerr := ecc.Put(vlanStore, "vlan", vlanArray, currVal)
+	if eccerr == ecc.OUTDATED {
+		releaseVlan(vlan)
+	}
 }
-
 func setBit(a []byte, k uint) {
 	a[k/8] |= 1 << (k % 8)
 }

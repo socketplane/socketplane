@@ -36,10 +36,10 @@ func TestNetworkCreate(t *testing.T) {
 
 func TestGetNetwork(t *testing.T) {
 	for i := 0; i < 5; i++ {
-		network := GetNetwork(fmt.Sprintf("Network-%d", i+1))
+		network, _ := GetNetwork(fmt.Sprintf("Network-%d", i+1))
 		if network == nil {
 			t.Error("Error GetNetwork")
-		} else if network.Subnet.String() != subnetArray[i].String() {
+		} else if network.Subnet != subnetArray[i].String() {
 			t.Error("Network mismatch")
 		}
 		fmt.Println("GetNetwork : ", network)
