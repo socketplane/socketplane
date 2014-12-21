@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"os"
 	"os/signal"
 
@@ -36,6 +37,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	go func() {
 		ovs.CreateBridge("")
 		network.CreateDefaultNetwork(ovs.OvsBridge.Subnet)
+		d.populateConnections()
 	}()
 	go Bonjour(bindInterface)
 	go datastore.Init(bindInterface, ctx.Bool("bootstrap"))
@@ -47,4 +49,14 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		}
 	}()
 	select {}
+}
+
+func (d *Daemon) populateConnections() {
+	for key, val := range ovs.ContextCache {
+		connection := &Connection{}
+		err := json.Unmarshal([]byte(val), connection)
+		if err == nil {
+			d.Connections[key] = connection
+		}
+	}
 }
