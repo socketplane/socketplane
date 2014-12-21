@@ -263,9 +263,9 @@ start_socketplane() {
         sudo docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
 
         if [ "$BOOTSTRAP" = "true" ] ; then
-            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=auto)
         else
-            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+            cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=auto)
         fi
 
     else
@@ -280,11 +280,11 @@ start_socketplane() {
             read -p "Is this the first node in the cluster? (y/n)" yn
             case $yn in
                 [Yy]* )
-                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=eth1)
+                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=auto)
                     break
                     ;;
                 [Nn]* )
-                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=eth1)
+                    cid=$(sudo docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=auto)
                     break
                     ;;
                 * )
