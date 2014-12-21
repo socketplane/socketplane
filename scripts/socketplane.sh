@@ -83,11 +83,14 @@ attach()    # OVS Port ID
             # Namespace PID
 {
     # see: https://docs.docker.com/articles/networking/
-
-    [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
-    [ -f /var/run/netns/$6 ] && rm -f /var/run/netns/$6
+    if [ ! -d /var/run/netns ]; then
+        mkdir -p /var/run/netns
+    fi
+    #Recreate the orphaned namespace
+    if [ ! -d /var/run/netns ]; then
+        rm -f /var/run/netns/$6
+    fi
     ln -s /proc/$6/ns/net /var/run/netns/$6
-
     ip link set dev $1 netns $6
     ip netns exec $6 ip link set dev $1 address $4
     ip netns exec $6 ip link set dev $1 up
