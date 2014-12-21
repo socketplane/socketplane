@@ -410,8 +410,7 @@ container_stop() {
 container_start() {
 
     docker start $1 > /dev/null
-
-    cid=$1
+    cid=$(docker ps --no-trunc=true | grep $1 | awk {' print $1'})
     cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
