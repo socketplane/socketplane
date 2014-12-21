@@ -158,6 +158,8 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	d.Connections[cfg.ContainerID] = cfg
 
 	data, _ := json.Marshal(cfg)
+	ovs.UpdateConnectionContext(ovsConnection.Name, cfg.ContainerID, string(data[:]))
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Write(data)
 	return nil

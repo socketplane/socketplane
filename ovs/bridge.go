@@ -54,6 +54,7 @@ type Bridge struct {
 var OvsBridge Bridge = Bridge{Name: defaultBridgeName}
 
 var ovs *libovsdb.OvsdbClient
+var ContextCache map[string]string
 
 func init() {
 	log.Formatter = new(logrus.JSONFormatter)
@@ -63,6 +64,8 @@ func init() {
 	if err != nil {
 		log.Println("Error connecting OVS ", err)
 	}
+	ContextCache = make(map[string]string)
+	populateContexCache()
 }
 
 func getAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
@@ -231,6 +234,28 @@ func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
 		return
 	}
 	return ovsConnection, nil
+}
+
+func UpdateConnectionContext(ovsPort string, key string, context string) error {
+	return UpdatePortContext(ovs, ovsPort, key, context)
+}
+
+func populateContexCache() {
+	if ovs == nil {
+		return
+	}
+	tableCache := GetTableCache("Interface")
+	for _, row := range tableCache {
+		config, ok := row.Fields["other_config"]
+		ovsMap := config.(libovsdb.OvsMap)
+		other_config := map[interface{}]interface{}(ovsMap.GoMap)
+		if ok {
+			container_id, ok := other_config[CONTEXT_KEY]
+			if ok {
+				ContextCache[container_id.(string)] = other_config[CONTEXT_VALUE].(string)
+			}
+		}
+	}
 }
 
 func DeleteConnection(portName string) error {

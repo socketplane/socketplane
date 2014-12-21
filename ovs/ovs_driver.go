@@ -13,6 +13,13 @@ var quit chan bool
 var update chan *libovsdb.TableUpdates
 var cache map[string]map[string]libovsdb.Row
 
+const CONTEXT_KEY = "container_id"
+const CONTEXT_VALUE = "container_data"
+
+func GetTableCache(tableName string) map[string]libovsdb.Row {
+	return cache[tableName]
+}
+
 func monitorDockerBridge(ovs *libovsdb.OvsdbClient) {
 	for {
 		select {
@@ -225,6 +232,38 @@ func deletePort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
 			log.Println("Transaction Failed due to an error :", o.Error)
 		}
 	}
+}
+
+func UpdatePortContext(ovs *libovsdb.OvsdbClient, portName string, key string, context string) error {
+	config := make(map[string]string)
+	config[CONTEXT_KEY] = key
+	config[CONTEXT_VALUE] = context
+	other_config, _ := libovsdb.NewOvsMap(config)
+
+	mutation := libovsdb.NewMutation("other_config", "insert", other_config)
+	condition := libovsdb.NewCondition("name", "==", portName)
+
+	// simple mutate operation
+	mutateOp := libovsdb.Operation{
+		Op:        "mutate",
+		Table:     "Interface",
+		Mutations: []interface{}{mutation},
+		Where:     []interface{}{condition},
+	}
+
+	operations := []libovsdb.Operation{mutateOp}
+	reply, _ := ovs.Transact("Open_vSwitch", operations...)
+	if len(reply) < len(operations) {
+		return errors.New("Number of Replies should be atleast equal to number of Operations")
+	}
+	for i, o := range reply {
+		if o.Error != "" && i < len(operations) {
+			return errors.New(fmt.Sprintln("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i]))
+		} else if o.Error != "" {
+			return errors.New(fmt.Sprintln("Transaction Failed due to an error :", o.Error))
+		}
+	}
+	return nil
 }
 
 func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
