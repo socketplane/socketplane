@@ -15,8 +15,12 @@ export DEBIAN_FRONTEND=noninteractive
 # -qq is pointless, it doesn't work :S
 apt-get update > /dev/null
 echo ====> Installing Packages
-apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch
+apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
+cd /usr/bin
+wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+unzip *.zip
+rm *.zip
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -26,8 +30,12 @@ echo ====> Updating Packages
 yum -qy update
 echo ====> Installing Packages
 yum -qy remove docker
-yum -qy install docker-io openvswitch
+yum -qy install docker-io openvswitch unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
+cd /usr/bin
+wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+unzip *.zip
+rm *.zip
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
