@@ -3,10 +3,12 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/socketplane/socketplane/network"
 	"github.com/socketplane/socketplane/ovs"
 )
 
@@ -68,7 +70,7 @@ func createRouter(d *Daemon) *mux.Router {
 			"/connections":         getConnections,
 			"/connections/{id:.*}": getConnection,
 			"/networks":            getNetworks,
-			"/network/{id:.*}":     getNetwork,
+			"/networks/{id:.*}":    getNetwork,
 		},
 		"POST": {
 			"/configuration": setConfiguration,
@@ -178,17 +180,69 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 }
 
 func getNetworks(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	networks, err := network.GetNetworks()
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	data, err := json.Marshal(networks)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func getNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	networks, err := network.GetNetwork(networkID)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	data, err := json.Marshal(networks)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	if r.Body == nil {
+		return &apiError{http.StatusBadRequest, "Request body is empty"}
+	}
+	networkRequest := &network.Network{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(networkRequest)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	_, cidr, err := net.ParseCIDR(networkRequest.Subnet)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+
+	newNetwork, err := network.CreateNetwork(networkRequest.ID, cidr)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+
+	data, _ := json.Marshal(newNetwork)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	return &apiError{http.StatusNotImplemented, "Not Implemented"}
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	err := network.DeleteNetwork(networkID)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	return nil
 }

@@ -447,19 +447,23 @@ container_delete() {
 }
 
 network_list() {
-    exit
+    curl -s -X GET http://localhost:6675/v0.1/networks | python -m json.tool
 }
 
 network_info() {
-    exit
+    curl -s -X GET http://localhost:6675/v0.1/networks/$1| python -m json.tool
 }
 
-network_create() {
-    exit
+network_create() #name
+                 #cidr
+{
+    #ToDo: Check CIDR is valid
+    curl -s -X POST http://localhost:6675/v0.1/networks -d "{ \"id\": \"$1\", \"subnet\": \"$2\" }" | python -m json.tool
+
 }
 
 network_delete() {
-    exit
+    curl -s -X DELETE http://localhost:6675/v0.1/networks/$@
 }
 
 # Run as root only
@@ -588,13 +592,16 @@ case "$1" in
                 network_list
                 ;;
             info)
-                network_info
+                shift
+                network_info $@
                 ;;
             create)
-                network_create
+                shift
+                network_create $@
                 ;;
             delete)
-                network_delete
+                shift
+                network_delete $@
                 ;;
             *)
                 log_fatal "Unknown Command"
