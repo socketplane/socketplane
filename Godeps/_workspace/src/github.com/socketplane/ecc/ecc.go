@@ -159,6 +159,34 @@ type consulBody struct {
 	Value       string `json:"Value,omitempty"`
 }
 
+func GetAll(store string) ([][]byte, []int, bool) {
+	url := CONSUL_KV_BASE_URL + store + "?recurse"
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("Error (%v) in Get for %s\n", err, url)
+		return nil, nil, false
+	}
+	defer resp.Body.Close()
+	log.Printf("Status of Get %s %d for %s", resp.Status, resp.StatusCode, url)
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		return nil, nil, false
+	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var jsonBody []consulBody
+		valueArr := make([][]byte, 0)
+		indexArr := make([]int, 0)
+		body, _ := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal(body, &jsonBody)
+		for _, body := range jsonBody {
+			existingValue, _ := b64.StdEncoding.DecodeString(body.Value)
+			valueArr = append(valueArr, existingValue)
+			indexArr = append(indexArr, body.ModifyIndex)
+		}
+		return valueArr, indexArr, true
+	} else {
+		return nil, nil, false
+	}
+}
+
 func Get(store string, key string) ([]byte, int, bool) {
 	url := CONSUL_KV_BASE_URL + store + "/" + key
 	resp, err := http.Get(url)
