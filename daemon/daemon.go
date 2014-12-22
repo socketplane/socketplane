@@ -42,11 +42,11 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	go ServeAPI(d)
 	go func() {
 		ovs.CreateBridge("")
-		network.CreateDefaultNetwork(ovs.OvsBridge.Subnet)
 		d.populateConnections()
+		datastore.Init(bindInterface, ctx.Bool("bootstrap"))
+		network.CreateDefaultNetwork(ovs.OvsBridge.Subnet)
+		Bonjour(bindInterface)
 	}()
-	go Bonjour(bindInterface)
-	go datastore.Init(bindInterface, ctx.Bool("bootstrap"))
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
