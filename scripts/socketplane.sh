@@ -541,7 +541,7 @@ case "$1" in
         install_curl
         install_ovs
         install_docker
-        start_socketplane
+        start_socketplane $@
         log_notice "Done!!!"
         ;;
     uninstall)
