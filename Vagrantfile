@@ -21,6 +21,7 @@ cd /usr/bin
 wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
+cd /vagrant && make
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -36,6 +37,7 @@ cd /usr/bin
 wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
+cd /vagrant && make
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
