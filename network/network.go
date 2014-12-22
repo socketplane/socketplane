@@ -20,6 +20,23 @@ type Network struct {
 	Vlan   uint   `json:"vlan"`
 }
 
+func GetNetworks() ([]Network, error) {
+	netByteArray, _, ok := ecc.GetAll(networkStore)
+	if ok {
+		var networks []Network
+		for _, byteArray := range netByteArray {
+			network := Network{}
+			err := json.Unmarshal(byteArray, &network)
+			if err != nil {
+				return nil, err
+			}
+			networks = append(networks, network)
+		}
+		return networks, nil
+	}
+	return nil, errors.New("Network unavailable")
+}
+
 func GetNetwork(id string) (*Network, error) {
 	netByteArray, _, ok := ecc.Get(networkStore, id)
 	if ok {
