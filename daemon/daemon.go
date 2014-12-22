@@ -2,8 +2,10 @@ package daemon
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"os/signal"
+	"time"
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
@@ -33,12 +35,16 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	if ctx.String("iface") != "auto" {
 		bindInterface = ctx.String("iface")
 	} else {
-		intf := InterfaceToBind()
+		intf := identifyInterfaceToBind()
 		if intf != nil {
 			bindInterface = intf.Name
 		}
 	}
-	log.Debugf("Binding to %s", bindInterface)
+	if bindInterface != "" {
+		log.Printf("Binding to %s", bindInterface)
+	} else {
+		log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
+	}
 	go ServeAPI(d)
 	go func() {
 		ovs.CreateBridge("")
@@ -55,6 +61,22 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		}
 	}()
 	select {}
+}
+
+func identifyInterfaceToBind() *net.Interface {
+	const timeout = 10
+	const iter = 5
+	// During a few auto-install / zerotouch config scenarios, eligible interfaces might
+	// come up few seconds after the daemon tries to identify the eligible interface.
+	// Hence adding a timeout of 10 seconds to compensate for those scenarios
+	for i := 0; i < iter; i++ {
+		intf := InterfaceToBind()
+		if intf != nil {
+			return intf
+		}
+		time.Sleep(time.Second * timeout / iter)
+	}
+	return nil
 }
 
 func (d *Daemon) populateConnections() {
