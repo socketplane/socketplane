@@ -150,8 +150,8 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/bonjour",
-			"Comment": "v0.1.2-1-g318167d",
-			"Rev": "318167d6074fe3d62c367a09bb6bfa78388be1ee"
+			"Comment": "v0.1.2",
+			"Rev": "0234668f9b464a1f21ef6f4f598125a7f555bedd"
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",

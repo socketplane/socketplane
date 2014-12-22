@@ -203,9 +203,6 @@ func newServer(iface *net.Interface) (*server, error) {
 		log.Printf("[ERR] bonjour: Failed to bind to udp4 port: %v", err)
 	}
 	ipv6conn, err := net.ListenMulticastUDP("udp6", iface, mdnsWildcardAddrIPv6)
-	if err != nil {
-		log.Printf("[ERR] bonjour: Failed to bind to udp6 port: %v", err)
-	}
 	if ipv4conn == nil && ipv6conn == nil {
 		return nil, fmt.Errorf("[ERR] bonjour: Failed to bind to any udp port!")
 	}
