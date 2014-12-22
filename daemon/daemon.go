@@ -64,17 +64,19 @@ func (d *Daemon) Run(ctx *cli.Context) {
 }
 
 func identifyInterfaceToBind() *net.Interface {
-	const timeout = 10
-	const iter = 5
-	// During a few auto-install / zerotouch config scenarios, eligible interfaces might
-	// come up few seconds after the daemon tries to identify the eligible interface.
-	// Hence adding a timeout of 10 seconds to compensate for those scenarios
-	for i := 0; i < iter; i++ {
+	// If the user isnt binding an interface using --iface option and let the daemon to
+	// identify the interface, the daemon will try its best to identify the best interface
+	// for the job.
+	// In a few auto-install / zerotouch config scenarios, eligible interfaces may
+	// be identified after the socketplane daemon is up and running.
+
+	for {
 		intf := InterfaceToBind()
 		if intf != nil {
 			return intf
 		}
-		time.Sleep(time.Second * timeout / iter)
+		time.Sleep(time.Second * 5)
+		log.Infof("Identifying interface to bind ... Use --iface option for static binding")
 	}
 	return nil
 }
