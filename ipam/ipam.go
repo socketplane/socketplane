@@ -5,7 +5,7 @@ import (
 	"math"
 	"net"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
@@ -13,8 +13,6 @@ import (
 // Key = subnet, Value = Bit Array of available ip-addresses in a given subnet
 
 const dataStore = "ipam"
-
-var log = logrus.New()
 
 func Request(subnet net.IPNet) net.IP {
 	bits := bitCount(subnet)
@@ -146,8 +144,6 @@ func testAndSetBit(a []byte) uint {
 
 // Lame implementation. Deprecate favoring Request function
 func GetAnAddress(subnet string) (string, error) {
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.DebugLevel
 	addrArray, _, ok := ecc.Get(dataStore, subnet)
 	currVal := make([]byte, len(addrArray))
 	copy(currVal, addrArray)
@@ -156,7 +152,7 @@ func GetAnAddress(subnet string) (string, error) {
 		address, _, err := net.ParseCIDR(subnet)
 		address = address.To4()
 		if err != nil || address == nil {
-			log.Printf("%v is not an IPv4 address\n", address)
+			log.Debugf("%v is not an IPv4 address\n", address)
 			return "", errors.New(subnet + "is not an IPv4 address")
 		}
 		address[3] = 1

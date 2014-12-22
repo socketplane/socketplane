@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 	"github.com/socketplane/socketplane/ipam"
@@ -43,8 +43,6 @@ var gatewayAddrs = []string{
 const mtu = 1514
 const defaultBridgeName = "docker0-ovs"
 
-var log = logrus.New()
-
 type Bridge struct {
 	Name   string
 	IP     net.IP
@@ -57,12 +55,10 @@ var ovs *libovsdb.OvsdbClient
 var ContextCache map[string]string
 
 func init() {
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.DebugLevel
 	var err error
 	ovs, err = ovs_connect()
 	if err != nil {
-		log.Println("Error connecting OVS ", err)
+		log.Error("Error connecting OVS ", err)
 	}
 	ContextCache = make(map[string]string)
 	populateContexCache()
@@ -325,37 +321,37 @@ func setupIPTables(bridgeName string, bridgeIP string) error {
 		iptables -A FORWARD -o %bridgeName -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 	*/
 
-	log.Println("Setting up iptables")
+	log.Debug("Setting up iptables")
 	natArgs := []string{"-t", "nat", "-A", "POSTROUTING", "-s", bridgeIP, "!", "-o", bridgeName, "-j", "MASQUERADE"}
 	output, err := installRule(natArgs...)
 	if err != nil {
-		log.Printf("Unable to enable network bridge NAT: %s", err)
+		log.Debugf("Unable to enable network bridge NAT: %s", err)
 		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 	}
 	if len(output) != 0 {
-		log.Printf("Error enabling network bridge NAT: %s", err)
+		log.Debugf("Error enabling network bridge NAT: %s", err)
 		return fmt.Errorf("Error enabling network bridge NAT: %s", output)
 	}
 
 	outboundArgs := []string{"-A", "FORWARD", "-i", bridgeName, "!", "-o", bridgeName, "-j", "ACCEPT"}
 	output, err = installRule(outboundArgs...)
 	if err != nil {
-		log.Printf("Unable to enable network outbound forwarding: %s", err)
+		log.Debugf("Unable to enable network outbound forwarding: %s", err)
 		return fmt.Errorf("Unable to enable network outbound forwarding: %s", err)
 	}
 	if len(output) != 0 {
-		log.Printf("Error enabling network outbound forwarding: %s", output)
+		log.Debugf("Error enabling network outbound forwarding: %s", output)
 		return fmt.Errorf("Error enabling network outbound forwarding: %s", output)
 	}
 
 	inboundArgs := []string{"-A", "FORWARD", "-o", bridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 	output, err = installRule(inboundArgs...)
 	if err != nil {
-		log.Printf("Unable to enable network inbound forwarding: %s", err)
+		log.Debugf("Unable to enable network inbound forwarding: %s", err)
 		return fmt.Errorf("Unable to enable network inbound forwarding: %s", err)
 	}
 	if len(output) != 0 {
-		log.Printf("Error enabling network inbound forwarding: %s")
+		log.Debugf("Error enabling network inbound forwarding: %s")
 		return fmt.Errorf("Error enabling network inbound forwarding: %s", output)
 	}
 	return nil
@@ -364,13 +360,11 @@ func setupIPTables(bridgeName string, bridgeIP string) error {
 func installRule(args ...string) ([]byte, error) {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
-		log.Printf("iptables not found")
 		return nil, errors.New("iptables not found")
 	}
 
 	output, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil {
-		log.Printf("iptables argh")
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 

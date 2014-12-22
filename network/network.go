@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
@@ -21,14 +21,10 @@ type Network struct {
 
 var vlanArray []byte
 var networkMap map[string]*Network
-var log = logrus.New()
 
 func init() {
 	vlanArray = make([]byte, vlanCount/8)
 	networkMap = make(map[string]*Network)
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.DebugLevel
-
 }
 
 func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
@@ -69,17 +65,17 @@ func GetDefaultNetwork() *Network {
 
 func networkFromLocalCache(id string, subnet *net.IPNet) *Network {
 	if network, ok := networkMap[id]; ok {
-		log.Println("Network from local cache", *network)
+		log.Debug("Network from local cache", *network)
 		return network
 	}
 	vlan := testAndSetBit(vlanArray)
 	if vlan >= vlanCount {
-		log.Println("No more vlan for ", id)
+		log.Debug("No more vlan for ", id)
 		return nil
 	}
 	network := Network{id, subnet, vlan}
 	networkMap[id] = &network
-	log.Println("Network created in local cache", network)
+	log.Debug("Network created in local cache", network)
 	return networkMap[id]
 }
 

@@ -24,6 +24,10 @@ func main() {
 			Name:  "bootstrap",
 			Usage: "Set --bootstrap for the first socketplane instance being started",
 		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Provide debug level logging",
+		},
 	}
 	app.Action = d.Run
 	app.Run(os.Args)

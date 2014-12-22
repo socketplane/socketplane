@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 )
 
@@ -45,8 +45,6 @@ func monitorDockerBridge(ovs *libovsdb.OvsdbClient) {
 }
 
 func CreateOVSBridge(ovs *libovsdb.OvsdbClient, bridgeName string) error {
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.DebugLevel
 	namedBridgeUuid := "bridge"
 	namedPortUuid := "port"
 	namedIntfUuid := "intf"
@@ -202,7 +200,7 @@ func deletePort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
 
 	portUuid := portUuidForName(portName)
 	if portUuid == "" {
-		log.Println("Unable to find a matching Port : ", portName)
+		log.Error("Unable to find a matching Port : ", portName)
 		return
 	}
 	// Deleting a Bridge row in Bridge table requires mutating the open_vswitch table.
@@ -223,13 +221,13 @@ func deletePort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
 	reply, _ := ovs.Transact("Open_vSwitch", operations...)
 
 	if len(reply) < len(operations) {
-		log.Println("Number of Replies should be atleast equal to number of Operations")
+		log.Error("Number of Replies should be atleast equal to number of Operations")
 	}
 	for i, o := range reply {
 		if o.Error != "" && i < len(operations) {
-			log.Println("Transaction Failed due to an error :", o.Error, " in ", operations[i])
+			log.Error("Transaction Failed due to an error :", o.Error, " in ", operations[i])
 		} else if o.Error != "" {
-			log.Println("Transaction Failed due to an error :", o.Error)
+			log.Error("Transaction Failed due to an error :", o.Error)
 		}
 	}
 }

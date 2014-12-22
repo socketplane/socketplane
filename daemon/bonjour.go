@@ -3,7 +3,7 @@ package daemon
 import (
 	"net"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 	"github.com/socketplane/socketplane/datastore"
 	"github.com/socketplane/socketplane/ovs"
@@ -12,8 +12,6 @@ import (
 const DOCKER_CLUSTER_SERVICE = "_docker._cluster"
 const DOCKER_CLUSTER_SERVICE_PORT = 9999 //TODO : fix this
 const DOCKER_CLUSTER_DOMAIN = "local"
-
-var log = logrus.New()
 
 func Bonjour(intfName string) {
 	b := bonjour.Bonjour{
@@ -30,14 +28,12 @@ func Bonjour(intfName string) {
 type notify struct{}
 
 func (n notify) NewMember(addr net.IP) {
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.InfoLevel
-	log.Println("New Member Added : ", addr)
+	log.Info("New Member Added : ", addr)
 	datastore.Join(addr.String())
 	ovs.AddPeer(addr.String())
 }
 func (n notify) RemoveMember(addr net.IP) {
-	log.Println("Member Left : ", addr)
+	log.Info("Member Left : ", addr)
 	ovs.DeletePeer(addr.String())
 }
 func InterfaceToBind() *net.Interface {

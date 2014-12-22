@@ -11,7 +11,11 @@ VERSION:
     0.1
 
 USAGE:
-    $0 <command> [command_options] [arguments...]
+    $0 <options> <command> [command_options] [arguments...]
+
+OPTIONS:
+
+    -D      Debug
 
 COMMANDS:
     help
@@ -257,37 +261,26 @@ start_socketplane() {
         return 1
     fi
 
+    flags="--iface=auto"
+
     if [ "$1" = "unattended" ]; then
         [ -z $DOCKERHUB_USER ] && log_fatal "DOCKERHUB_USER not set" && exit 1
         [ -z $DOCKERHUB_PASS ] && log_fatal "DOCKERHUB_PASS not set" && exit 1
         [ -z $DOCKERHUB_MAIL ] && log_fatal "DOCKERHUB_MAIL not set" && exit 1
         [ -z $BOOTSTRAP ] && log_fatal "BOOTSTRAP not set" && exit 1
 
-        docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
-
         if [ "$BOOTSTRAP" = "true" ] ; then
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=auto)
-        else
-            cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=auto)
+            flags="$flags --bootstrap=true"
         fi
-
     else
-
-        # The following will prompt for:
-        #------------------------------#
-        # userid
-        # password
-        # email
-        docker login
         while true; do
             read -p "Is this the first node in the cluster? (y/n)" yn
             case $yn in
                 [Yy]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --bootstrap=true --iface=auto)
+                    flags="$flags --bootstrap=true"
                     break
                     ;;
                 [Nn]* )
-                    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane --iface=auto)
                     break
                     ;;
                 * )
@@ -296,6 +289,26 @@ start_socketplane() {
             esac
         done
     fi
+
+    # ToDo: Remove when dockerhub image is public
+    if [ -z "$(docker images | grep socketplane/socketplane)" ]; then
+        if [ "$1" = "unattended" ]; then
+            docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
+        else
+            # The following will prompt for:
+            #------------------------------#
+            # userid
+            # password
+            # email
+            docker login
+        fi
+    fi
+
+    if [ "$DEBUG" = "true" ]; then
+        flags="$flags --debug=true"
+    fi
+
+    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane $flags)
 
     if [ -n "$cid" ]; then
         log_info "A SocketPlane container was started" | indent
@@ -495,6 +508,22 @@ case "$lsb_dist" in
         ovs="openvswitch"
         ;;
 esac
+
+while getopts ":D" opt; do
+  case $opt in
+    D)
+      DEBUG="true"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [ "$DEBUG" = "true" ]; then
+    set -x
+fi
 
 case "$1" in
     help)

@@ -1,2 +1,2 @@
 build:
-	docker build -t socketplane .
+	docker build -t socketplane/socketplane .
