@@ -254,11 +254,14 @@ func populateContexCache() {
 	}
 }
 
-func DeleteConnection(portName string) error {
+func DeleteConnection(connection OvsConnection) error {
 	if ovs == nil {
 		return errors.New("OVS not connected")
 	}
-	deletePort(ovs, OvsBridge.Name, portName)
+	deletePort(ovs, OvsBridge.Name, connection.Name)
+	ip := net.ParseIP(connection.Ip)
+	_, subnet, _ := net.ParseCIDR(connection.Subnet)
+	ipam.Release(ip, *subnet)
 	return nil
 }
 

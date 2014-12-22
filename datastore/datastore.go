@@ -5,7 +5,7 @@ import "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/sock
 const dataDir = "/tmp/socketplane"
 
 func Init(bindInterface string, bootstrap bool) error {
-	return ecc.Start(true, bootstrap, bindInterface, dataDir)
+	return ecc.Start(bootstrap, bootstrap, bindInterface, dataDir)
 }
 
 func Join(address string) error {

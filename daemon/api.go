@@ -171,8 +171,12 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	vars := mux.Vars(r)
 	containerID := vars["id"]
 
-	portID := d.Connections[containerID].OvsPortID
-	err := ovs.DeleteConnection(portID)
+	connection, ok := d.Connections[containerID]
+	if !ok {
+		return nil
+	}
+
+	err := ovs.DeleteConnection(connection.ConnectionDetails)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
