@@ -1,11 +1,14 @@
-package network
+package ovs
 
 import (
 	"encoding/json"
 	"errors"
 	"net"
+	"time"
 
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
+	"github.com/socketplane/socketplane/ipam"
 )
 
 const networkStore = "network"
@@ -15,9 +18,10 @@ const DefaultNetworkName = "default"
 const vlanCount = 4096
 
 type Network struct {
-	ID     string `json:"id"`
-	Subnet string `json:"subnet"`
-	Vlan   uint   `json:"vlan"`
+	ID      string `json:"id"`
+	Subnet  string `json:"subnet"`
+	Gateway string `json:"gateway"`
+	Vlan    uint   `json:"vlan"`
 }
 
 func GetNetworks() ([]Network, error) {
@@ -59,16 +63,39 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 	if err != nil {
 		return nil, err
 	}
-	network = &Network{id, subnet.String(), vlan}
+	gateway := ipam.Request(*subnet)
+
+	network = &Network{id, subnet.String(), gateway.String(), vlan}
 	data, err := json.Marshal(network)
 	if err != nil {
 		return nil, err
 	}
+
 	eccerr := ecc.Put(networkStore, id, data, nil)
 	if eccerr == ecc.OUTDATED {
 		releaseVlan(vlan)
+		ipam.Release(gateway, *subnet)
 		return CreateNetwork(id, subnet)
 	}
+
+	AddInternalPort(ovs, defaultBridgeName, network.ID, vlan)
+
+	// TODO : Lame. Remove the sleep. This is required now to keep netlink happy
+	// in the next step to find the created interface.
+	time.Sleep(time.Second * 1)
+
+	gatewayNet := &net.IPNet{gateway, subnet.Mask}
+	log.Debugf("Setting address %s on %s", gatewayNet.String(), network.ID)
+	if err = SetInterfaceIp(network.ID, gatewayNet.String()); err != nil {
+		return network, err
+	}
+	if err = InterfaceUp(network.ID); err != nil {
+		return network, err
+	}
+	if err = setupIPTables(network.ID, network.Subnet); err != nil {
+		return network, err
+	}
+
 	return network, nil
 }
 
@@ -85,7 +112,11 @@ func DeleteNetwork(id string) error {
 	return errors.New("Error deleting network")
 }
 
-func CreateDefaultNetwork(subnet *net.IPNet) (*Network, error) {
+func CreateDefaultNetwork() (*Network, error) {
+	subnet, err := GetAvailableSubnet()
+	if err != nil {
+		return &Network{}, err
+	}
 	return CreateNetwork(DefaultNetworkName, subnet)
 }
 
