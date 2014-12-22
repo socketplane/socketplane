@@ -405,12 +405,17 @@ info() {
 }
 
 container_run() {
+    network=""
+    if [ $1 = '-n' ]; then
+        network=$2
+        shift 2
+    fi
     cid=$(docker run --net=none $@)
     cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
-    json=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\" }")
-    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
+    json=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\", \"network\": \"$network\" }")
+    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $7, $8, $9, $10, $11 }')
 
     attach $result $cPid
 
@@ -423,7 +428,6 @@ container_stop() {
 }
 
 container_start() {
-
     docker start $1 > /dev/null
     cid=$(docker ps --no-trunc=true | grep $1 | awk {' print $1'})
     cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)

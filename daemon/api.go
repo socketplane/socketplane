@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/socketplane/socketplane/network"
 	"github.com/socketplane/socketplane/ovs"
 )
 
@@ -30,6 +29,7 @@ type Connection struct {
 	ContainerID       string            `json:"container_id"`
 	ContainerName     string            `json:"container_name"`
 	ContainerPID      string            `json:"container_pid"`
+	Network           string            `json:"network"`
 	OvsPortID         string            `json:"ovs_port_id"`
 	ConnectionDetails ovs.OvsConnection `json:"connection_details"`
 }
@@ -151,7 +151,11 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
-	ovsConnection, err := ovs.AddConnection(pid)
+
+	if cfg.Network == "" {
+		cfg.Network = ovs.DefaultNetworkName
+	}
+	ovsConnection, err := ovs.AddConnection(pid, cfg.Network)
 	if err != nil && ovsConnection.Name == "" {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -184,7 +188,7 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 }
 
 func getNetworks(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	networks, err := network.GetNetworks()
+	networks, err := ovs.GetNetworks()
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -201,7 +205,7 @@ func getNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
 	vars := mux.Vars(r)
 	networkID := vars["id"]
 
-	networks, err := network.GetNetwork(networkID)
+	networks, err := ovs.GetNetwork(networkID)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -218,7 +222,7 @@ func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	if r.Body == nil {
 		return &apiError{http.StatusBadRequest, "Request body is empty"}
 	}
-	networkRequest := &network.Network{}
+	networkRequest := &ovs.Network{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(networkRequest)
 	if err != nil {
@@ -229,7 +233,7 @@ func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
 
-	newNetwork, err := network.CreateNetwork(networkRequest.ID, cidr)
+	newNetwork, err := ovs.CreateNetwork(networkRequest.ID, cidr)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -244,7 +248,7 @@ func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	vars := mux.Vars(r)
 	networkID := vars["id"]
 
-	err := network.DeleteNetwork(networkID)
+	err := ovs.DeleteNetwork(networkID)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}

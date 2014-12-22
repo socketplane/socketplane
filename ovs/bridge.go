@@ -12,7 +12,6 @@ import (
 	"time"
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 	"github.com/socketplane/socketplane/ipam"
 )
@@ -44,9 +43,9 @@ const mtu = 1514
 const defaultBridgeName = "docker0-ovs"
 
 type Bridge struct {
-	Name   string
-	IP     net.IP
-	Subnet *net.IPNet
+	Name string
+	//	IP     net.IP
+	//	Subnet *net.IPNet
 }
 
 var OvsBridge Bridge = Bridge{Name: defaultBridgeName}
@@ -64,7 +63,7 @@ func init() {
 	populateContexCache()
 }
 
-func getAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
+func GetAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
 	if len(bridgeIP) != 0 {
 		_, _, err = net.ParseCIDR(bridgeIP)
 		if err != nil {
@@ -83,14 +82,28 @@ func getAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
 			}
 		}
 	}
-	return "", errors.New("No available GW address")
+	return "", errors.New("No available subnets")
 }
 
-func CreateBridge(bridgeIP string) error {
-	ifaceAddr, err := getAvailableGwAddress(bridgeIP)
-	if err != nil {
-		return fmt.Errorf("Could not find a free IP address range for '%s'", OvsBridge.Name)
+func GetAvailableSubnet() (subnet *net.IPNet, err error) {
+	for _, addr := range gatewayAddrs {
+		_, dockerNetwork, err := net.ParseCIDR(addr)
+		if err != nil {
+			return &net.IPNet{}, err
+		}
+		if err = CheckRouteOverlaps(dockerNetwork); err == nil {
+			return dockerNetwork, nil
+		}
 	}
+
+	return &net.IPNet{}, errors.New("No available GW address")
+}
+
+func CreateBridge() error {
+	//ifaceAddr, err := getAvailableGwAddress(bridgeIP)
+	//if err != nil {
+	//	return fmt.Errorf("Could not find a free IP address range for '%s'", OvsBridge.Name)
+	//}
 
 	iface, err := net.InterfaceByName(OvsBridge.Name)
 	if iface == nil && err != nil {
@@ -101,34 +114,31 @@ func CreateBridge(bridgeIP string) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		addr, err := GetIfaceAddr(OvsBridge.Name)
+	}
+	/*
+		else {
+			addr, err := GetIfaceAddr(OvsBridge.Name)
+			if err != nil {
+				return err
+			}
+			ifaceAddr = addr.String()
+		}
+
+		ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
 		if err != nil {
 			return err
 		}
-		ifaceAddr = addr.String()
-	}
 
-	ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
-	if err != nil {
-		return err
-	}
+		//OvsBridge.IP = ipAddr
+		//OvsBridge.Subnet = ipNet
 
-	OvsBridge.IP = ipAddr
-	OvsBridge.Subnet = ipNet
-
-	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
-		return fmt.Errorf("Unable to add private network: %s", err)
-	}
-	if err := netlink.NetworkLinkUp(iface); err != nil {
-		return fmt.Errorf("Unable to start network bridge: %s", err)
-	}
-
-	err = setupIPTables(OvsBridge.Name, OvsBridge.Subnet.String())
-	if err != nil {
-		return err
-	}
-
+		if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+			return fmt.Errorf("Unable to add private network: %s", err)
+		}
+		if err := netlink.NetworkLinkUp(iface); err != nil {
+			return fmt.Errorf("Unable to start network bridge: %s", err)
+		}
+	*/
 	return nil
 }
 
@@ -168,7 +178,7 @@ type OvsConnection struct {
 	Gateway string `json:"gateway"`
 }
 
-func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
+func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, err error) {
 	var (
 		bridge = OvsBridge.Name
 		prefix = "ovs"
@@ -180,21 +190,32 @@ func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
 		err = fmt.Errorf("bridge is not available")
 		return
 	}
-	portName, err := createOvsInternalPort(prefix, bridge)
+
+	if networkName == "" {
+		networkName = DefaultNetworkName
+	}
+
+	bridgeNetwork, err := GetNetwork(networkName)
+	if err != nil {
+		return ovsConnection, err
+	}
+
+	portName, err := createOvsInternalPort(prefix, bridge, bridgeNetwork.Vlan)
 	if err != nil {
 		return
 	}
 	// Add a dummy sleep to make sure the interface is seen by the subsequent calls.
 	time.Sleep(time.Second * 1)
 
-	ip := ipam.Request(*OvsBridge.Subnet)
-	subnet := OvsBridge.Subnet.String()
+	_, subnet, _ := net.ParseCIDR(bridgeNetwork.Subnet)
+
+	ip := ipam.Request(*subnet)
 	mac := generateMacAddr(ip).String()
-	gatewayIp := OvsBridge.IP.String()
 
-	subnetPrefix := subnet[len(subnet)-3 : len(subnet)]
+	subnetString := subnet.String()
+	subnetPrefix := subnetString[len(subnetString)-3 : len(subnetString)]
 
-	ovsConnection = OvsConnection{portName, ip.String(), subnetPrefix, mac, gatewayIp}
+	ovsConnection = OvsConnection{portName, ip.String(), subnetPrefix, mac, bridgeNetwork.Gateway}
 
 	if err = SetMtu(portName, mtu); err != nil {
 		return
@@ -226,7 +247,7 @@ func AddConnection(nspid int) (ovsConnection OvsConnection, err error) {
 	if err = InterfaceUp(portName); err != nil {
 		return
 	}
-	if err = SetDefaultGateway(OvsBridge.IP.String(), portName); err != nil {
+	if err = SetDefaultGateway(bridgeNetwork.Gateway, portName); err != nil {
 		return
 	}
 	return ovsConnection, nil
@@ -267,7 +288,7 @@ func DeleteConnection(connection OvsConnection) error {
 
 // createOvsInternalPort will generate a random name for the
 // the port and ensure that it has been created
-func createOvsInternalPort(prefix string, bridge string) (port string, err error) {
+func createOvsInternalPort(prefix string, bridge string, tag uint) (port string, err error) {
 	if port, err = GenerateRandomName(prefix, 7); err != nil {
 		return
 	}
@@ -277,7 +298,7 @@ func createOvsInternalPort(prefix string, bridge string) (port string, err error
 		return
 	}
 
-	AddInternalPort(ovs, bridge, port)
+	AddInternalPort(ovs, bridge, port, tag)
 	return
 }
 

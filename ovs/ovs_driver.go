@@ -264,7 +264,7 @@ func UpdatePortContext(ovs *libovsdb.OvsdbClient, portName string, key string, c
 	return nil
 }
 
-func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
+func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string, tag uint) {
 	namedPortUuid := "port"
 	namedIntfUuid := "intf"
 
@@ -284,6 +284,10 @@ func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName stri
 	port := make(map[string]interface{})
 	port["name"] = portName
 	port["interfaces"] = libovsdb.UUID{namedIntfUuid}
+
+	if tag != 0 {
+		port["tag"] = tag
+	}
 
 	insertPortOp := libovsdb.Operation{
 		Op:       "insert",
@@ -309,13 +313,13 @@ func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName stri
 	operations := []libovsdb.Operation{insertIntfOp, insertPortOp, mutateOp}
 	reply, _ := ovs.Transact("Open_vSwitch", operations...)
 	if len(reply) < len(operations) {
-		fmt.Println("Number of Replies should be atleast equal to number of Operations")
+		log.Error("Number of Replies should be atleast equal to number of Operations")
 	}
 	for i, o := range reply {
 		if o.Error != "" && i < len(operations) {
-			fmt.Println("Transaction Failed due to an error :", o.Error, " details:", o.Details, " in ", operations[i])
+			log.Errorf("Transaction Failed due to an error : %v details: %v in %v", o.Error, o.Details, operations[i])
 		} else if o.Error != "" {
-			fmt.Println("Transaction Failed due to an error :", o.Error)
+			log.Errorf("Transaction Failed due to an error : %v", o.Error)
 		}
 	}
 }
