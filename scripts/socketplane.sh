@@ -136,7 +136,7 @@ get_status() {
     fi
 
     OVS_SVER="NOT_INSTALLED"
-    if command_exists ovs-appctl; then
+    if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
         OVS_SVER=$(ovs-appctl -V | grep "ovs-" |  awk '{ print $4 }')
     fi
 }
