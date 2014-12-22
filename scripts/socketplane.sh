@@ -261,7 +261,7 @@ start_socketplane() {
         return 1
     fi
 
-    flags="--iface=eth1"
+    flags="--iface=auto"
 
     if [ "$1" = "unattended" ]; then
         [ -z $DOCKERHUB_USER ] && log_fatal "DOCKERHUB_USER not set" && exit 1
