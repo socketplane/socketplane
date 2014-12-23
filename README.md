@@ -54,25 +54,25 @@ This will create three hosts (socketplane-1, socketplane-2 and socketplane-3).  
 
 You can start Docker instances in each of the VM's and they will all be in a default network.
 
-    socketplane run -itd ubuntu
+    sudo ocketplane run -itd ubuntu
 
 You can also see the status of instances on a specific host VM by typing:
 
-    socketplane info 
+    sudo socketplane info 
 
 If you want to create multiple networks you can do the following:
 
     sudo socketplane network create web 10.2.0.0/16
 
-    socketplane run -n web -itd ubuntu
+    sudo socketplane run -n web -itd ubuntu
 
 You can list all the created networks with the following command:
 
-    socketplane network list 
+    sudo socketplane network list 
 
 For more options use the HELP command
 
-    socketplane help
+    sudo socketplane help
 
 ## Hacking
 Clone the repository:
