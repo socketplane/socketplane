@@ -26,6 +26,20 @@ echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
 
+$ubuntu_s = <<SCRIPT
+echo ====> Updating Packages
+export DEBIAN_FRONTEND=noninteractive
+# -qq is pointless, it doesn't work :S
+apt-get update > /dev/null
+echo ====> Installing Packages
+apt-get install -qq -y --no-install-recommends unzip
+ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
+cd /usr/bin
+wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+unzip *.zip
+rm *.zip
+SCRIPT
+
 $redhat = <<SCRIPT
 echo ====> Updating Packages
 yum -qy update
@@ -40,6 +54,19 @@ rm *.zip
 cd /vagrant && make
 echo ====> Installing SocketPlane
 socketplane install unattended
+SCRIPT
+
+$redhat_s = <<SCRIPT
+echo ====> Updating Packages
+yum -qy update
+echo ====> Installing Packages
+yum -qy remove docker
+yum -qy install unzip
+ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
+cd /usr/bin
+wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+unzip *.zip
+rm *.zip
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -73,7 +100,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ubuntu.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
-    #ubuntu.vm.provision :shell, inline: $ubuntu
+    ubuntu.vm.provision :shell, inline: $ubuntu_s
   end
     config.vm.define "ubuntu", autostart: false do |ubuntu|
     ubuntu.vm.box = "chef/ubuntu-14.10"
@@ -82,16 +109,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ubuntu.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
-    #ubuntu.vm.provision :shell, inline: $ubuntu
+    ubuntu.vm.provision :shell, inline: $ubuntu_s
   end
   config.vm.define "centos", autostart: false do |centos|
-    centos.vm.box = "chef/centos-7"
+    centos.vm.box = "chef/centos-7.0"
     centos.vm.hostname = "centos"
     centos.vm.network :private_network, ip: "10.254.102.11"
     centos.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
-    #centos.vm.provision :shell, inline: $redhat
+    centos.vm.provision :shell, inline: $redhat_s
   end
   config.vm.define "fedora", autostart: false do |fedora|
     fedora.vm.box = "chef/fedora-20"
@@ -100,6 +127,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     fedora.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
     end
-    #fedora.vm.provision :shell, inline: $redhat
+    fedora.vm.provision :shell, inline: $redhat_s
   end
 end
