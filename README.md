@@ -38,8 +38,41 @@ Next start an image, for example a bash shell:
     sudo ./socketplane.sh run -i -t ubuntu /bin/bash
 
 ## Vagrant Installation
+A Default Vagrant file has been provided to setup a three VM demo system.  By default three Ubuntu 14.04 VM hosts will be installed each with an installed version of Socketplane.  
 
-    TODO:John 
+To start the demo systems:
+
+    git clone https://github.com/socketplane/socketplane
+    cd socketplane
+    vagrant up  
+
+This will create three hosts (socketplane-1, socketplane-2 and socketplane-3).  Once the VM's are started you can ssh in as follows:
+
+    vagrant ssh socketplane-1 
+    vagrant ssh socketplane-2 
+    vagrant ssh socketplane-3 
+
+You can start Docker instances in each of the VM's and they will all be in a default network.
+
+    socketplane run -itd ubuntu
+
+You can also see the status of instances on a specific host VM by typing:
+
+    socketplane info 
+
+If you want to create multiple networks you can do the following:
+
+    sudo socketplane network create web 10.2.0.0/16
+
+    socketplane run -n web -itd ubuntu
+
+You can list all the created networks with the following command:
+
+    socketplane network list 
+
+For more options use the HELP command
+
+    socketplane help
 
 ## Hacking
 Clone the repository:
