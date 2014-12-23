@@ -445,8 +445,9 @@ container_start() {
 }
 
 container_delete() {
+    cid=$(docker ps -a --no-trunc=true | grep $1 | awk {' print $1'})
     docker rm $@
-    curl -s -X DELETE http://localhost:6675/v0.1/connections/$@
+    curl -s -X DELETE http://localhost:6675/v0.1/connections/$cid
     sleep 1
     # clean up dangling symlinks
     find -L /var/run/netns -type l -delete
