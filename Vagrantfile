@@ -18,10 +18,10 @@ echo ====> Installing Packages
 apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin
-wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
-cd /vagrant && make
+cd /vagrant && docker build -q -t socketplane/socketplane . > /dev/null
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -48,10 +48,10 @@ yum -qy remove docker
 yum -qy install docker-io openvswitch unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin
-wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
-cd /vagrant && make
+cd /vagrant && docker build -q -t socketplane/socketplane . > /dev/null
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -78,7 +78,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   num_nodes.times do |n|
     config.vm.define "socketplane-#{n+1}" do |socketplane|
-      socketplane.vm.box = "chef/ubuntu-14.04"
+      socketplane.vm.box = "socketplane/ubuntu-14.10"
+      socketplane.vm.box_url = "https://socketplane.s3.amazonaws.com/vagrant/virtualbox/ubuntu-14.10.box"
       socketplane_ip = socketplane_ips[n]
       socketplane_index = n+1
       socketplane.vm.hostname = "socketplane-#{socketplane_index}"

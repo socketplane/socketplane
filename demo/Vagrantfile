@@ -18,24 +18,10 @@ echo ====> Installing Packages
 apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin
-wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
-echo ====> Installing SocketPlane
-socketplane install unattended
-SCRIPT
-
-$redhat = <<SCRIPT
-echo ====> Updating Packages
-yum -qy update
-echo ====> Installing Packages
-yum -qy remove docker
-yum -qy install docker-io openvswitch unzip
-ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
-cd /usr/bin
-wget https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
-unzip *.zip
-rm *.zip
+cd /vagrant && docker build -q -t socketplane/socketplane .
 echo ====> Installing SocketPlane
 socketplane install unattended
 SCRIPT
@@ -49,7 +35,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   num_nodes.times do |n|
     config.vm.define "socketplane-#{n+1}" do |socketplane|
-      socketplane.vm.box = "chef/ubuntu-14.04"
+      socketplane.vm.box = "socketplane/ubuntu-14.10"
+      socketplane.vm.box_url = "https://socketplane.s3.amazonaws.com/vagrant/virtualbox/ubuntu-14.10.box"
       socketplane_ip = socketplane_ips[n]
       socketplane_index = n+1
       socketplane.vm.hostname = "socketplane-#{socketplane_index}"
@@ -61,43 +48,5 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       socketplane.vm.provision :shell, inline: "echo 'export BOOTSTRAP=#{n+1 == 1 ? "true" : "false"}' >> ~/.profile"
       socketplane.vm.provision :shell, inline: $ubuntu
     end
-  end
-
-  # Boxes for testing installer
-  config.vm.define "ubuntu-lts", autostart: false do |ubuntu|
-    ubuntu.vm.box = "chef/ubuntu-14.04"
-    ubuntu.vm.hostname = "ubuntu"
-    ubuntu.vm.network :private_network, ip: "10.254.102.10"
-    ubuntu.vm.provider :virtualbox do |vb|
-      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
-    end
-    #ubuntu.vm.provision :shell, inline: $ubuntu
-  end
-    config.vm.define "ubuntu", autostart: false do |ubuntu|
-    ubuntu.vm.box = "chef/ubuntu-14.10"
-    ubuntu.vm.hostname = "ubuntu"
-    ubuntu.vm.network :private_network, ip: "10.254.102.10"
-    ubuntu.vm.provider :virtualbox do |vb|
-      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
-    end
-    #ubuntu.vm.provision :shell, inline: $ubuntu
-  end
-  config.vm.define "centos", autostart: false do |centos|
-    centos.vm.box = "chef/centos-7"
-    centos.vm.hostname = "centos"
-    centos.vm.network :private_network, ip: "10.254.102.11"
-    centos.vm.provider :virtualbox do |vb|
-      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
-    end
-    #centos.vm.provision :shell, inline: $redhat
-  end
-  config.vm.define "fedora", autostart: false do |fedora|
-    fedora.vm.box = "chef/fedora-20"
-    fedora.vm.hostname = "fedora"
-    fedora.vm.network :private_network, ip: "10.254.102.12"
-    fedora.vm.provider :virtualbox do |vb|
-      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
-    end
-    #fedora.vm.provision :shell, inline: $redhat
   end
 end
