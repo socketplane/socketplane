@@ -184,6 +184,7 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
+	delete(d.Connections, containerID)
 	return nil
 }
 

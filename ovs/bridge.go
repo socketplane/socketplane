@@ -281,7 +281,7 @@ func DeleteConnection(connection OvsConnection) error {
 	}
 	deletePort(ovs, OvsBridge.Name, connection.Name)
 	ip := net.ParseIP(connection.Ip)
-	_, subnet, _ := net.ParseCIDR(connection.Subnet)
+	_, subnet, _ := net.ParseCIDR(connection.Ip + connection.Subnet)
 	ipam.Release(ip, *subnet)
 	return nil
 }
