@@ -264,9 +264,6 @@ start_socketplane() {
     flags="--iface=auto"
 
     if [ "$1" = "unattended" ]; then
-        [ -z $DOCKERHUB_USER ] && log_fatal "DOCKERHUB_USER not set" && exit 1
-        [ -z $DOCKERHUB_PASS ] && log_fatal "DOCKERHUB_PASS not set" && exit 1
-        [ -z $DOCKERHUB_MAIL ] && log_fatal "DOCKERHUB_MAIL not set" && exit 1
         [ -z $BOOTSTRAP ] && log_fatal "BOOTSTRAP not set" && exit 1
 
         if [ "$BOOTSTRAP" = "true" ] ; then
@@ -288,20 +285,6 @@ start_socketplane() {
                     ;;
             esac
         done
-    fi
-
-    # ToDo: Remove when dockerhub image is public
-    if [ -z "$(docker images | grep socketplane/socketplane)" ]; then
-        if [ "$1" = "unattended" ]; then
-            docker login -e $DOCKERHUB_MAIL -p $DOCKERHUB_PASS -u $DOCKERHUB_USER
-        else
-            # The following will prompt for:
-            #------------------------------#
-            # userid
-            # password
-            # email
-            docker login
-        fi
     fi
 
     if [ "$DEBUG" = "true" ]; then
