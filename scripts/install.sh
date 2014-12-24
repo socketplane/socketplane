@@ -15,8 +15,20 @@ fi
 
 if command_exists socketplane; then
     echo >&2 'Warning: "socketplane" command appears to already exist.'
-    echo >&2 'Please ensure that you do not already have socketplane installed.'
-    exit 1
+    while true; do
+        read -p "Would you like to re-install socketplane (y/n) " yn
+        case $yn in
+            [Yy]* )
+                break
+                ;;
+            [Nn]* )
+                exit 1
+                ;;
+            * )
+                echo "Please answer yes or no."
+                ;;
+        esac
+    done
 fi
 
 curl=''
