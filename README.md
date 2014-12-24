@@ -13,7 +13,7 @@ In this release we support the following features:
 - Support for multiple networks
 - Distributed IP Address Management (IPAM)
 
-Our 'ZeroConf' technology is based on [multicast DNS](). This allows us to discover other SocketPlane cluster members on the same segment and to start peering with them. This allows us to elastically grow the cluster on demand by simply deploying another host - mDNS handles the rest. Since multicast availability is hit and miss in most networks, it is aimed at making it easy to deploy Docker and SocketPlane to start getting familiar with the exciting marriage of advanced, yet sane networking scenario with the exciting Docker use cases. We will be working with the community on other clustering technologies such as swarm that can be in used in conjunction to provide a more provisioning oriented clustering solutions.
+Our 'ZeroConf' technology is based on [multicast DNS](http://en.wikipedia.org/wiki/Zero-configuration_networking). This allows us to discover other SocketPlane cluster members on the same segment and to start peering with them. This allows us to elastically grow the cluster on demand by simply deploying another host - mDNS handles the rest. Since multicast availability is hit and miss in most networks, it is aimed at making it easy to deploy Docker and SocketPlane to start getting familiar with the exciting marriage of advanced, yet sane networking scenario with the exciting Docker use cases. We will be working with the community on other clustering technologies such as swarm that can be in used in conjunction to provide a more provisioning oriented clustering solutions.
 
 Once we've discovered our neighbors, we're able to join an embedded [Consul] instance, giving us access to an eventually consistent key/value store for network state.
 
@@ -86,6 +86,12 @@ While Golang, Docker and OVS can run on many operating systems, we are currently
 or
 
     wget -qO- http://get.socketplane.io/ | sudo sh
+
+This should ideally start the Socketplane agent container as well.
+You can use **sudo docker ps | grep socketplane** command to check the status.
+If, the agent isnt already running, you can install it using the following command :
+
+    sudo socketplane install
 
 Next start an image, for example a bash shell:
 
