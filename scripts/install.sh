@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -e -x
 
 # Utility to check if a command exists
 command_exists() {
@@ -23,14 +23,14 @@ curl=''
 if command_exists curl; then
     curl='curl -sSL -o'
 elif command_exists wget; then
-    curl='wget -q -o'
+    curl='wget -q -O'
 fi
 
 if [ ! -d /opt/socketplane ]; then
     mkdir -p /opt/socketplane
 fi
 
-if [ ! -f /opt/socketplane/socketplane]; then
+if [ ! -f /opt/socketplane/socketplane ]; then
     $curl /opt/socketplane/socketplane https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/socketplane.sh
 fi
 
