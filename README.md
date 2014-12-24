@@ -24,26 +24,9 @@ Finally, we've implemented a distributed IP address management solution that ena
 
 > Note: As we previously mentioned, it's not an *ideal* approach, but it allows people to start kicking the tyres as soon as possible. All of the functionality in `socketplane.sh` will move in to our Golang core over time.
 
-## Deploy
+## Installation
 
-While Golang, Docker and OVS can run on many operating systems, we are currently running tests and QA against [Ubuntu](http://www.ubuntu.com/download) and [Fedora](https://getfedora.org/).
-
-> Note: If you are using Virtualbox, please take care of the following before proceeding with the installation :
-* Clustering over NAT adapter will not work. Hence, the Virtualbox VMs must have either **Host-Only Adapter (or) Internal Network (or) Bridged adapter** installed for clustering to work.
-* The VMs/Hosts must have **unique hostname**. Make sure that /etc/hosts in the VMs have the unique hostname updated.
-
-    curl -sSL http://get.socketplane.io/ | sudo sh
-
-or
-
-    wget -qO- http://get.socketplane.io/ | sudo sh
-
-Next start an image, for example a bash shell:
-
-    sudo socketplane run -i -t ubuntu /bin/bash
-
-
-## Vagrant Installation
+### Vagrant
 
 A Default Vagrant file has been provided to setup a a demo system. By default three Ubuntu 14.04 VM hosts will be installed each with an installed version of Socketplane.
 
@@ -70,6 +53,43 @@ The VM's are named `socketplane-{n}`, where `n` is a number from 1 to `SOCKETPLA
 You can start Docker containters in each of the VM's and they will all be in a default network.
 
     sudo socketplane run -itd ubuntu
+
+You can also see the status of containers on a specific host VM by typing:
+
+    sudo socketplane info
+
+If you want to create multiple networks you can do the following:
+
+    sudo socketplane network create web 10.2.0.0/16
+
+    sudo socketplane run -n web -itd ubuntu
+
+You can list all the created networks with the following command:
+
+    sudo socketplane network list
+
+For more options use the HELP command
+
+    sudo socketplane help
+
+### Non-Vagrant install / deploy
+
+If you are not a vagrant user, please follow these instructions to install and deploy socketplane.
+While Golang, Docker and OVS can run on many operating systems, we are currently running tests and QA against [Ubuntu](http://www.ubuntu.com/download) and [Fedora](https://getfedora.org/).
+
+> Note: If you are using Virtualbox, please take care of the following before proceeding with the installation :
+* Clustering over NAT adapter will not work. Hence, the Virtualbox VMs must have either **Host-Only Adapter (or) Internal Network (or) Bridged adapter** installed for clustering to work.
+* The VMs/Hosts must have **unique hostname**. Make sure that /etc/hosts in the VMs have the unique hostname updated.
+
+    curl -sSL http://get.socketplane.io/ | sudo sh
+
+or
+
+    wget -qO- http://get.socketplane.io/ | sudo sh
+
+Next start an image, for example a bash shell:
+
+    sudo socketplane run -i -t ubuntu /bin/bash
 
 You can also see the status of containers on a specific host VM by typing:
 
