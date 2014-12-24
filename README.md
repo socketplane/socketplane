@@ -28,6 +28,10 @@ Finally, we've implemented a distributed IP address management solution that ena
 
 While Golang, Docker and OVS can run on many operating systems, we are currently running tests and QA against [Ubuntu](http://www.ubuntu.com/download) and [Fedora](https://getfedora.org/).
 
+> Note: If you are using Virtualbox, please take care of the following before proceeding with the installation :
+* Clustering over NAT adapter will not work. Hence, the Virtualbox VMs must have either **Host-Only Adapter (or) Internal Network (or) Bridged adapter** installed for clustering to work.
+* The VMs/Hosts must have **unique hostname**. Make sure that /etc/hosts in the VMs have the unique hostname updated.
+
     curl -sSL https://get.socketplane.io/ | sudo sh
 
 or
@@ -37,6 +41,7 @@ or
 Next start an image, for example a bash shell:
 
     sudo socketplane run -i -t ubuntu /bin/bash
+
 
 ## Vagrant Installation
 
@@ -83,6 +88,22 @@ You can list all the created networks with the following command:
 For more options use the HELP command
 
     sudo socketplane help
+
+## Useful Agent Commands
+
+The Socketplane agent runs in its own container and you might find the following commands useful :
+
+1. Socketplane agent troubleshooting/debug logs :
+
+        sudo socketplane agent logs
+
+2. Socketplane agent stop :
+
+        sudo socketplane agent stop
+
+3. Socketplane agent start :
+
+        sudo socketplane agent start
 
 ## Hacking
 
