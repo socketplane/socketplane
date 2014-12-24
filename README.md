@@ -28,11 +28,11 @@ Finally, we've implemented a distributed IP address management solution that ena
 
 While Golang, Docker and OVS can run on many operating systems, we are currently running tests and QA against [Ubuntu](http://www.ubuntu.com/download) and [Fedora](https://getfedora.org/).
 
-    curl -sSL https://get.socketplane.io/ | sh
+    curl -sSL https://get.socketplane.io/ | sudo sh
 
 or
 
-    sudo wget -qO- https://get.socketplane.io/ | sh
+    sudo wget -qO- https://get.socketplane.io/ | sudo sh
 
 Next start an image, for example a bash shell:
 
