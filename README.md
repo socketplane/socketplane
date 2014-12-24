@@ -4,7 +4,7 @@ Developers don't want to care about VLANs, VXLANs, Tunnels or TEPs. People respo
 
 ## SocketPlane Technology Preview
 
-This early release is just a peek at some of the things we are working on and releasing to the community as open source. In order to manipulate Docker we needed to use a temporary wrapper until the upstream Docker work for drivers and plugins are complete. There is a `socketplane` command that is used as a front-end to the `docker` CLI commands. This is what enables us send hooks to the SocketPlane Daemon.
+This early release is just a peek at some of the things we are working on and releasing to the community as open source. As we are working upstream with the Docker community to bring in native support for network driver/plugin/extensions, we received a number of request to try the proposed socketplane solution with existing Docker versions. Hence we came up with a temporary wrapper command : `socketplane` that is used as a front-end to the `docker` CLI commands. This enables us to send hooks to the SocketPlane Daemon.
 
 In this release we support the following features:
 
@@ -13,13 +13,13 @@ In this release we support the following features:
 - Support for multiple networks
 - Distributed IP Address Management (IPAM)
 
-Our 'ZeroConf' technology is based on [multicast DNS](). This allows us to discover other SocketPlane cluster members on the same segment and to start peering with them. This allows us to elastically grow the cluster on demand by simply deploying another host - mDNS handles the rest. Since multicast availability is hit and miss in most networks, it is aimed at making it easy to deploy Docker and SocketPlane to start getting familiar with the exciting marriage of advanced, yet sane networking scenario with the exciting Docker use cases.
+Our 'ZeroConf' technology is based on [multicast DNS](). This allows us to discover other SocketPlane cluster members on the same segment and to start peering with them. This allows us to elastically grow the cluster on demand by simply deploying another host - mDNS handles the rest. Since multicast availability is hit and miss in most networks, it is aimed at making it easy to deploy Docker and SocketPlane to start getting familiar with the exciting marriage of advanced, yet sane networking scenario with the exciting Docker use cases. We will be working with the community on other clustering technologies such as swarm that can be in used in conjunction to provide a more provisioning oriented clustering solutions.
 
 Once we've discovered our neighbors, we're able to join an embedded [Consul] instance, giving us access to an eventually consistent key/value store for network state.
 
 We support mutiple networks, to allow you to divide your containers in to subnets to ease the burden of enforcing firewall policy in the network.
 
-Finally, we've implemented a distributed IP address management solution that enables non conflicting address assignment throught a cluster.
+Finally, we've implemented a distributed IP address management solution that enables non conflicting address assignment throughout a cluster.
 
 
 > Note: As we previously mentioned, it's not an *ideal* approach, but it allows people to start kicking the tyres as soon as possible. All of the functionality in `socketplane.sh` will move in to our Golang core over time.
