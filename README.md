@@ -1,4 +1,4 @@
-# SocketPlane
+#SocketPlane
 
 Developers don't want to care about VLANs, VXLANs, Tunnels or TEPs. People responsible for managing the infra expect it to be performant and reliable. SocketPlane provides a networking abstraction at the socket-layer in order to solve the problems of the network in a manageable fashion.
 
@@ -8,10 +8,13 @@ This early release is just a peek at some of the things we are working on and re
 
 In this release we support the following features:
 
+- Open vSwitch integration
 - ZeroConf multi-host networking for Docker
 - Elastic growth of a Docker/SocketPlane cluster
 - Support for multiple networks
 - Distributed IP Address Management (IPAM)
+
+Overlay networking establishes tunnels between host endpoints, and in our case, those host endpoints are Open vSwitch. The advantage to this scenario is the user doesn't need to worry about subnets/vlans or any other layer 2 usage constraints. This is just one way to deploy container networking that we will be presenting. The importance of Open vSwitch is performance and the defacto APIs for advanced networking.
 
 Our 'ZeroConf' technology is based on [multicast DNS](http://en.wikipedia.org/wiki/Zero-configuration_networking). This allows us to discover other SocketPlane cluster members on the same segment and to start peering with them. This allows us to elastically grow the cluster on demand by simply deploying another host - mDNS handles the rest. Since multicast availability is hit and miss in most networks, it is aimed at making it easy to deploy Docker and SocketPlane to start getting familiar with the exciting marriage of advanced, yet sane networking scenario with the exciting Docker use cases. We will be working with the community on other clustering technologies such as swarm that can be in used in conjunction to provide a more provisioning oriented clustering solutions.
 
