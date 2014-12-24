@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Utility to check if a command exists
 command_exists() {
     hash $@ 2>/dev/null
@@ -7,7 +9,7 @@ command_exists() {
 
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
-    log_fatal "Please run as root"
+    echo >&2 "Please run as root"
     exit 1
 fi
 
@@ -19,17 +21,27 @@ fi
 
 curl=''
 if command_exists curl; then
-    curl='curl'
+    curl='curl -sSL -o'
 elif command_exists wget; then
-    curl='wget'
+    curl='wget -q -o'
 fi
 
-mkdir -p /opt/socketplane
+if [ ! -d /opt/socketplane ]; then
+    mkdir -p /opt/socketplane
+fi
 
-$curl -o /opt/socketplane/socketplane https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/socketplane.sh
-$curl -o /opt/socketplane/functions.sh https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/functions.sh
+if [ ! -f /opt/socketplane/socketplane]; then
+    $curl /opt/socketplane/socketplane https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/socketplane.sh
+fi
+
+if [ ! -f /opt/socketplane/functions.sh ]; then
+    $curl /opt/socketplane/functions.sh https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/functions.sh
+fi
 
 chmod +x /opt/socketplane/socketplane
-ln -s /opt/socketplane/socketplane /usr/bin/socketplane
+
+if [ ! -f /usr/bin/socketplane ]; then
+    ln -s /opt/socketplane/socketplane /usr/bin/socketplane
+fi
 
 socketplane install
