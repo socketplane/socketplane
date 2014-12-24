@@ -151,7 +151,7 @@
 		{
 			"ImportPath": "github.com/socketplane/bonjour",
 			"Comment": "v0.1.2",
-			"Rev": "0234668f9b464a1f21ef6f4f598125a7f555bedd"
+			"Rev": "fbd9a4df3321b7588fd174933c4236bd771730d8"
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",

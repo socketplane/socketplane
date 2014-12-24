@@ -29,25 +29,29 @@ type cacheEntry struct {
 var dnsCache map[string]cacheEntry
 var queryChan chan *ServiceEntry
 
-func (b Bonjour) publish() {
+func (b Bonjour) publishOnce() {
 	ifName := b.InterfaceName
-	sleeper := time.Second * 30
-	for {
-		var iface *net.Interface = nil
-		var err error
-		if ifName != "" {
-			iface, err = net.InterfaceByName(ifName)
-			if err != nil {
-				log.Println(err.Error())
-			}
-		}
-		instance, err := os.Hostname()
-		_, err = Register(instance, b.ServiceName,
-			b.ServiceDomain, b.ServicePort,
-			[]string{"txtv=1", "key1=val1", "key2=val2"}, iface, b.BindToIntf)
+	var iface *net.Interface = nil
+	var err error
+	if ifName != "" {
+		iface, err = net.InterfaceByName(ifName)
 		if err != nil {
 			log.Println(err.Error())
 		}
+	}
+	instance, err := os.Hostname()
+	_, err = Register(instance, b.ServiceName,
+		b.ServiceDomain, b.ServicePort,
+		[]string{"txtv=1", "key1=val1", "key2=val2"}, iface, b.BindToIntf)
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
+
+func (b Bonjour) publish() {
+	sleeper := time.Second * 30
+	for {
+		b.publishOnce()
 		time.Sleep(sleeper)
 	}
 }
@@ -77,6 +81,7 @@ func (b Bonjour) resolve(resolver *Resolver, results chan *ServiceEntry) {
 				if _, ok := dnsCache[e.AddrIPv4.String()]; !ok {
 					log.Printf("New Bonjour Member : %s, %s, %s, %s",
 						e.Instance, e.Service, e.Domain, e.AddrIPv4)
+					b.publishOnce()
 					if b.Notify != nil {
 						b.Notify.NewMember(e.AddrIPv4)
 					}
