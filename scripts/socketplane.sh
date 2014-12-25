@@ -393,7 +393,18 @@ container_run() {
         network=$2
         shift 2
     fi
-    cid=$(docker run --net=none $@)
+
+    attach="false"
+    if [ -z "$(echo "$@" | grep -e '-.*\?d.*\?')" ]; then
+        attach="true"
+    fi
+
+    if [ "$attach" = "false" ]; then
+         cid=$(docker run --net=none $@)
+    else
+         cid=$(docker run --net=none -d $@)
+    fi
+
     cPid=$(docker inspect --format='{{ .State.Pid }}' $cid)
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
@@ -402,7 +413,11 @@ container_run() {
 
     attach $result $cPid
 
-    echo $cid
+    if [ "$attach" = "false" ]; then
+        echo $cid
+    else
+        docker attach $cid
+    fi
 }
 
 container_stop() {
