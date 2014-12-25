@@ -347,7 +347,7 @@ stop_socketplane() {
         exit 1
     fi
 
-    for IMAGE_ID in $(docker ps | grep socketplane/socketplane | awk '{ print $1; }'); do
+    for IMAGE_ID in $(docker ps -a | grep socketplane/socketplane | awk '{ print $1; }'); do
         log_info "Stopping socketplane container: $IMAGE_ID" | indent
         docker stop $IMAGE_ID > /dev/null
         sleep 1
@@ -552,6 +552,7 @@ case "$1" in
     uninstall)
         log_notice "Uninstalling SocketPlane..."
         stop_socketplane
+        remove_socketplane
         log_notice "Done!!!"
         ;;
     clean)
