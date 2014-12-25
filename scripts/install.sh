@@ -7,6 +7,13 @@ command_exists() {
     hash $@ 2>/dev/null
 }
 
+cleanup() {
+    socketplane agent stop
+    socketplane uninstall
+    rm -rf /opt/socketplane
+    rm -rf /usr/bin/socketplane
+}
+
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
     echo >&2 "Please run as root"
@@ -19,6 +26,7 @@ if command_exists socketplane; then
         read -p "Would you like to re-install socketplane (y/n) " yn
         case $yn in
             [Yy]* )
+                cleanup
                 break
                 ;;
             [Nn]* )
