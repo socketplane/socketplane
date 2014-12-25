@@ -22,6 +22,9 @@ import (
 
 // Consul Agent related functions
 
+var started bool
+var OfflineSupport bool = true
+
 func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string) error {
 	bindAddress := ""
 	if bindInterface != "" {
@@ -49,6 +52,7 @@ func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string
 		return errors.New("Error starting Consul Agent")
 	case <-time.After(time.Second * 5):
 	}
+	go populateKVStoreFromCache()
 	return nil
 }
 
@@ -73,6 +77,10 @@ func startConsul(serverMode bool, bootstrap bool, bindAddress string, dataDir st
 	if ret != 0 {
 		eCh <- ret
 	}
+}
+
+func HasStarted() bool {
+	return started
 }
 
 func Join(address string) error {
@@ -160,6 +168,9 @@ type consulBody struct {
 }
 
 func GetAll(store string) ([][]byte, []int, bool) {
+	if OfflineSupport && !started {
+		return getAllFromCache(store)
+	}
 	url := CONSUL_KV_BASE_URL + store + "?recurse"
 	resp, err := http.Get(url)
 	if err != nil {
@@ -188,6 +199,9 @@ func GetAll(store string) ([][]byte, []int, bool) {
 }
 
 func Get(store string, key string) ([]byte, int, bool) {
+	if OfflineSupport && !started {
+		return getFromCache(store, key)
+	}
 	url := CONSUL_KV_BASE_URL + store + "/" + key
 	resp, err := http.Get(url)
 	if err != nil {
@@ -221,6 +235,9 @@ const (
 type eccerror int
 
 func Put(store string, key string, value []byte, oldValue []byte) eccerror {
+	if OfflineSupport && !started {
+		return putInCache(store, key, value, oldValue)
+	}
 	existingValue, casIndex, ok := Get(store, key)
 	if ok && !bytes.Equal(oldValue, existingValue) {
 		return OUTDATED
@@ -247,6 +264,9 @@ func Put(store string, key string, value []byte, oldValue []byte) eccerror {
 }
 
 func Delete(store string, key string) eccerror {
+	if OfflineSupport && !started {
+		return deleteFromCache(store, key)
+	}
 	url := fmt.Sprintf("%s%s/%s", CONSUL_KV_BASE_URL, store, key)
 	log.Printf("Deleting KV pair for %s", url)
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -262,4 +282,67 @@ func Delete(store string, key string) eccerror {
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println(string(body))
 	return OK
+}
+
+type Store struct {
+	cache map[string][]byte
+}
+
+var cache map[string]Store = make(map[string]Store)
+
+func getAllFromCache(storeName string) ([][]byte, []int, bool) {
+	store, ok := cache[storeName]
+	if !ok {
+		return nil, nil, false
+	}
+	vals := make([][]byte, 0)
+	for _, val := range store.cache {
+		vals = append(vals, val)
+	}
+	return vals, nil, true
+}
+
+func getFromCache(storeName string, key string) ([]byte, int, bool) {
+	store, ok := cache[storeName]
+	if !ok {
+		return nil, 0, false
+	}
+	val, ok := store.cache[key]
+	return val, 0, ok
+}
+
+func putInCache(storeName string, key string, value []byte, oldValue []byte) eccerror {
+	store, ok := cache[storeName]
+	if !ok {
+		store = Store{make(map[string][]byte)}
+		cache[storeName] = store
+	}
+	store.cache[key] = value
+	return OK
+}
+
+func deleteFromCache(storeName string, key string) eccerror {
+	store, ok := cache[storeName]
+	if ok {
+		delete(store.cache, key)
+	}
+	return OK
+}
+
+func populateKVStoreFromCache() {
+	if !OfflineSupport {
+		return
+	}
+	// Populating KV store from Cache -> consul datastore needs some time interval
+	// between consul daemon start and first addition to the KV store.
+	// Bad things happen otherwise.
+
+	time.Sleep(time.Second * 3)
+	started = true
+	for storeName, store := range cache {
+		for key, val := range store.cache {
+			go Put(storeName, key, val, nil)
+		}
+		delete(cache, storeName)
+	}
 }
