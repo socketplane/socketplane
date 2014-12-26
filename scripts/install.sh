@@ -64,4 +64,5 @@ if [ ! -f /usr/bin/socketplane ]; then
     ln -s /opt/socketplane/socketplane /usr/bin/socketplane
 fi
 
+sleep 3
 socketplane install
