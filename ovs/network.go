@@ -57,15 +57,49 @@ func GetNetwork(id string) (*Network, error) {
 func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 	network, err := GetNetwork(id)
 	if err == nil {
+		log.Debugf("Network '%s' found", id)
 		return network, nil
 	}
+
 	vlan, err := allocateVlan()
 	if err != nil {
+		log.Debugf("Unable to allocate VLAN for Network '%s'. Error: %v", id, err.Error())
 		return nil, err
 	}
-	gateway := ipam.Request(*subnet)
 
-	network = &Network{id, subnet.String(), gateway.String(), vlan}
+	var gateway net.IP
+
+	addr, err := GetIfaceAddr(id)
+	if err != nil {
+		log.Debugf("Interface with name %s does not exist. Creating it.", id)
+		// Interface does not exist, use the generated subnet
+		gateway = ipam.Request(*subnet)
+		network = &Network{id, subnet.String(), gateway.String(), vlan}
+		AddInternalPort(ovs, defaultBridgeName, network.ID, vlan)
+		// TODO : Lame. Remove the sleep. This is required now to keep netlink happy
+		// in the next step to find the created interface.
+		time.Sleep(time.Second * 1)
+
+		gatewayNet := &net.IPNet{gateway, subnet.Mask}
+
+		log.Debugf("Setting address %s on %s", gatewayNet.String(), network.ID)
+
+		if err = SetInterfaceIp(network.ID, gatewayNet.String()); err != nil {
+			return network, err
+		}
+		if err = InterfaceUp(network.ID); err != nil {
+			return network, err
+		}
+	} else {
+		log.Debugf("Interface with name %s already exists", id)
+		ifaceAddr := addr.String()
+		gateway, subnet, err = net.ParseCIDR(ifaceAddr)
+		if err != nil {
+			return nil, err
+		}
+		network = &Network{id, subnet.String(), gateway.String(), vlan}
+	}
+
 	data, err := json.Marshal(network)
 	if err != nil {
 		return nil, err
@@ -78,20 +112,6 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 		return CreateNetwork(id, subnet)
 	}
 
-	AddInternalPort(ovs, defaultBridgeName, network.ID, vlan)
-
-	// TODO : Lame. Remove the sleep. This is required now to keep netlink happy
-	// in the next step to find the created interface.
-	time.Sleep(time.Second * 1)
-
-	gatewayNet := &net.IPNet{gateway, subnet.Mask}
-	log.Debugf("Setting address %s on %s", gatewayNet.String(), network.ID)
-	if err = SetInterfaceIp(network.ID, gatewayNet.String()); err != nil {
-		return network, err
-	}
-	if err = InterfaceUp(network.ID); err != nil {
-		return network, err
-	}
 	if err = setupIPTables(network.ID, network.Subnet); err != nil {
 		return network, err
 	}

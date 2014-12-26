@@ -104,7 +104,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ubuntu.vm.provision :shell, inline: $ubuntu_s
   end
     config.vm.define "ubuntu", autostart: false do |ubuntu|
-    ubuntu.vm.box = "chef/ubuntu-14.10"
+    ubuntu.vm.box = "socketplane/ubuntu-14.10"
+    ubuntu.vm.box_url = "https://socketplane.s3.amazonaws.com/vagrant/virtualbox/ubuntu-14.10.box"
     ubuntu.vm.hostname = "ubuntu"
     ubuntu.vm.network :private_network, ip: "10.254.102.10"
     ubuntu.vm.provider :virtualbox do |vb|
