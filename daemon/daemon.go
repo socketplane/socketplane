@@ -29,34 +29,47 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	if ctx.Bool("debug") {
 		log.SetLevel(log.DebugLevel)
 	}
+	bootstrapNode := ctx.Bool("bootstrap")
+	serialChan := make(chan bool)
 
-	var bindInterface string
-	if ctx.String("iface") != "auto" {
-		bindInterface = ctx.String("iface")
-	} else {
-		intf := identifyInterfaceToBind()
-		if intf != nil {
-			bindInterface = intf.Name
-		}
-	}
-	if bindInterface != "" {
-		log.Printf("Binding to %s", bindInterface)
-	} else {
-		log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
-	}
 	go ServeAPI(d)
 	go func() {
+		var bindInterface string
+		if ctx.String("iface") != "auto" {
+			bindInterface = ctx.String("iface")
+		} else {
+			intf := identifyInterfaceToBind()
+			if intf != nil {
+				bindInterface = intf.Name
+			}
+		}
+		if bindInterface != "" {
+			log.Printf("Binding to %s", bindInterface)
+		} else {
+			log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
+		}
+		datastore.Init(bindInterface, bootstrapNode)
+		Bonjour(bindInterface)
+		if !bootstrapNode {
+			serialChan <- true
+		}
+	}()
+
+	go func() {
+		if !bootstrapNode {
+			log.Printf("Non-Bootstrap node waiting on peer discovery")
+			<-serialChan
+			log.Printf("Non-Bootstrap node admitted into cluster")
+		}
 		err := ovs.CreateBridge()
 		if err != nil {
 			log.Error(err.Error)
 		}
 		d.populateConnections()
-		datastore.Init(bindInterface, ctx.Bool("bootstrap"))
 		_, err = ovs.CreateDefaultNetwork()
 		if err != nil {
 			log.Error(err.Error)
 		}
-		Bonjour(bindInterface)
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
