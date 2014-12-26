@@ -151,12 +151,12 @@
 		{
 			"ImportPath": "github.com/socketplane/bonjour",
 			"Comment": "v0.1.2",
-			"Rev": "fbd9a4df3321b7588fd174933c4236bd771730d8"
+			"Rev": "eee79f005990805cf2a16d71524282a9994b4549"
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",
 			"Comment": "v0.1.1",
-			"Rev": "0c30df0862dacccdf3d6f9f9931cd3c0788d509b"
+			"Rev": "37bd0116ec28de13e4e34af26c1e4bcd25901ac2"
 		},
 		{
 			"ImportPath": "github.com/socketplane/go-fastping",

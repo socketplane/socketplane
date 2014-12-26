@@ -333,11 +333,6 @@ func populateKVStoreFromCache() {
 	if !OfflineSupport {
 		return
 	}
-	// Populating KV store from Cache -> consul datastore needs some time interval
-	// between consul daemon start and first addition to the KV store.
-	// Bad things happen otherwise.
-
-	time.Sleep(time.Second * 3)
 	started = true
 	for storeName, store := range cache {
 		for key, val := range store.cache {
