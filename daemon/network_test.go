@@ -1,4 +1,4 @@
-package ovs
+package daemon
 
 import (
 	"fmt"
@@ -11,7 +11,8 @@ import (
 var subnetArray []*net.IPNet
 
 func TestInit(t *testing.T) {
-	err := datastore.Init("eth1", true)
+	t.Skip("Skipping test while dependent on Consul")
+	err := datastore.Init("eth0", true)
 	if err != nil {
 		t.Error("Error starting Consul ", err)
 	}
@@ -25,6 +26,7 @@ func TestInit(t *testing.T) {
 }
 
 func TestNetworkCreate(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	for i := 0; i < len(subnetArray); i++ {
 		network, err := CreateNetwork(fmt.Sprintf("Network-%d", i+1), subnetArray[i])
 		if err != nil {
@@ -35,6 +37,7 @@ func TestNetworkCreate(t *testing.T) {
 }
 
 func TestGetNetwork(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	for i := 0; i < 5; i++ {
 		network, _ := GetNetwork(fmt.Sprintf("Network-%d", i+1))
 		if network == nil {
@@ -47,6 +50,7 @@ func TestGetNetwork(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	for i := 0; i < 5; i++ {
 		err := DeleteNetwork(fmt.Sprintf("Network-%d", i+1))
 		if err != nil {

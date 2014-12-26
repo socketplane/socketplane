@@ -1,4 +1,4 @@
-package ovs
+package daemon
 
 import (
 	"encoding/binary"

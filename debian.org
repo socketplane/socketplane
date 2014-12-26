@@ -1,5 +1,0 @@
-Server:		10.0.2.3
-Address:	10.0.2.3#53
-
-** server can't find http: NXDOMAIN
-
