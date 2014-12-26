@@ -39,7 +39,7 @@ COMMANDS:
     info [container_id]
             Show SocketPlane info for all containers, or for a given container_id
 
-    run [--network foo] <docker_run_args>
+    run [-n foo] <docker_run_args>
             Run a container and optionally specify which network to attach to
 
     start <container_id>
