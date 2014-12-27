@@ -319,7 +319,8 @@ start_socketplane_image() {
     if [ -n "$(docker ps | grep socketplane/socketplane | awk '{ print $1 }')" ]; then
         log_info  "All Socketplane agent containers are started."
     else
-        log_info  "No Socketplane agent containers are started."
+        log_info  "No Socketplane agent containers are provisioned, starting one now."
+        start_socketplane
     fi
 }
 
