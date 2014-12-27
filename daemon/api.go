@@ -8,15 +8,10 @@ import (
 	"strconv"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/socketplane/socketplane/datastore"
 	"github.com/socketplane/socketplane/ovs"
 )
 
-const (
-	API_VERSION      string = "/v0.1"
-	ENDPOINT_ADDRESS        = "endpointIP"
-	ENDPOINTS               = "/endpoints"
-)
+const API_VERSION string = "/v0.1"
 
 type Response struct {
 	Status  string
@@ -81,12 +76,10 @@ func createRouter(d *Daemon) *mux.Router {
 			"/configuration": setConfiguration,
 			"/connections":   createConnection,
 			"/networks":      createNetwork,
-			ENDPOINTS + "/{" + ENDPOINT_ADDRESS + "}", addEndpointHandler,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
 			"/networks/{id:.*}":    deleteNetwork,
-			ENDPOINTS + "/{" + ENDPOINT_ADDRESS + "}", delEndpointHandler,
 		},
 	}
 
@@ -257,31 +250,6 @@ func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	networkID := vars["id"]
 
 	err := ovs.DeleteNetwork(networkID)
-	if err != nil {
-		return &apiError{http.StatusInternalServerError, err.Error()}
-	}
-	return nil
-}
-
-func addEndpointHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	vars := mux.Vars(r)
-	endpointIP := vars["endpointIP"]
-
-	ipaddr := net.ParseIP(endpointIP).To4()
-	n := datastore.EndPoint{}
-	err := n.NewMember(ipaddr)
-	if err != nil {
-		return &apiError{http.StatusInternalServerError, err.Error()}
-	}
-	return nil
-}
-
-func delEndpointHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	vars := mux.Vars(r)
-	endpointIP := vars[ENDPOINT_ADDRESS]
-	ipaddr := net.ParseIP(endpointIP).To4()
-	n := datastore.EndPoint{}
-	err := n.RemoveEndpoint(ipaddr)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}

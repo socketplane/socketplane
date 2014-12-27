@@ -72,15 +72,6 @@ COMMANDS:
     network agent stop
             Stops a running SocketPlane image. This will not delete the local image
 
-    network agent cluster join [address]
-            Adds a node to a cluster
-
-    network agent cluster leave [address]
-            Removes a node from an an existing network cluster
-
-    network agent cluster list
-            Lists all network nodes
-
 EOF
 }
 
@@ -480,14 +471,6 @@ network_delete() {
     curl -s -X DELETE http://localhost:6675/v0.1/networks/$@
 }
 
-join_cluster() {
-    curl -s -X POST http://localhost:6675/v0.1/endpoint/$@
-}
-
-leave_cluster() {
-    curl -s -X DELETE http://localhost:6675/v0.1/endpoint/$@
-}
-
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
     log_fatal "Please run as root"
@@ -644,23 +627,8 @@ case "$1" in
             logs)
                 logs
                 ;;
-            cluster)
-                shift
-                case "$1" in
-                    join)
-                        join_cluster $@
-                        ;;
-                     leave)
-                        leave_cluster $@
-                        ;;
-                    *)
-                log_fatal "socketplane agent cluster {  join | leave | list }"
-                        usage
-                        exit 1
-                esac
-                ;;
             *)
-                log_fatal "socketplane agent cluster { stop | start | logs | cluster }"
+                log_fatal "\"socketplane agent\" {stop|start|logs}"
                 exit 1
                 ;;
         esac
