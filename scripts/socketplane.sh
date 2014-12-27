@@ -204,9 +204,6 @@ install_ovs() {
             ;;
         fedora)
             systemctl start openvswitch.service
-            # Disable SELINUX to allow for a conn
-            sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-            sudo /usr/sbin/setenforce 0
             ;;
     esac
 
