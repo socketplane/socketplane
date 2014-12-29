@@ -1,4 +1,5 @@
 ecc
 ===
 
-Embedded Consul Client
+Embedded Clustering Client.
+Currently using Consul.
