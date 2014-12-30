@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"os/signal"
@@ -31,10 +32,11 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	}
 	bootstrapNode := ctx.Bool("bootstrap")
 	serialChan := make(chan bool)
+	bindChan = make(chan string)
 
+	var bindInterface string
 	go ServeAPI(d)
 	go func() {
-		var bindInterface string
 		if ctx.String("iface") != "auto" {
 			bindInterface = ctx.String("iface")
 		} else {
@@ -48,10 +50,29 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		} else {
 			log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
 		}
-		datastore.Init(bindInterface, bootstrapNode)
 		Bonjour(bindInterface)
-		if !bootstrapNode {
-			serialChan <- true
+		if clusterListener == "" {
+			bindChan <- bindInterface
+		}
+	}()
+
+	go func() {
+		for {
+			bindInterface = <-bindChan
+			if bindInterface == clusterListener {
+				continue
+			}
+			once := true
+			if clusterListener != "" {
+				once = false
+				datastore.Leave()
+				time.Sleep(time.Second * 5)
+			}
+			clusterListener = bindInterface
+			datastore.Init(clusterListener, bootstrapNode)
+			if !bootstrapNode && once {
+				serialChan <- true
+			}
 		}
 	}()
 
@@ -81,6 +102,21 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	select {}
 }
 
+var bindChan chan string
+var clusterListener string
+
+func ConfigureClusterListenerPort(listen string) error {
+	iface, err := net.InterfaceByName(listen)
+	if err != nil {
+		return err
+	}
+	if iface.Flags&net.FlagUp == 0 {
+		return errors.New("Interface is down")
+	}
+	bindChan <- listen
+	return nil
+}
+
 func identifyInterfaceToBind() *net.Interface {
 	// If the user isnt binding an interface using --iface option and let the daemon to
 	// identify the interface, the daemon will try its best to identify the best interface
@@ -89,7 +125,12 @@ func identifyInterfaceToBind() *net.Interface {
 	// be identified after the socketplane daemon is up and running.
 
 	for {
-		intf := InterfaceToBind()
+		var intf *net.Interface
+		if clusterListener != "" {
+			intf, _ = net.InterfaceByName(clusterListener)
+		} else {
+			intf = InterfaceToBind()
+		}
 		if intf != nil {
 			return intf
 		}
