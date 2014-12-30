@@ -72,14 +72,14 @@ COMMANDS:
     network agent stop
             Stops a running SocketPlane image. This will not delete the local image
 
-    network agent cluster add [address]
-            Adds a new cluster node
+    cluster join [address]
+            Adds a node to a cluster. Provide the boostrap node to join. If one does not exist run 'network cluster listen'
 
-    network agent cluster delete [address]
-            deletes an existing node
+    cluster leave [address]
+            Removes a node from an an existing cluster
 
-    network agent cluster list
-            Lists all cluster nodes
+    cluster listen [network interface ]
+            The boostrap interface to listen on for new nodes joining the cluster. If this is a new multihost installation use this option. Example. 'cluster listen eth0'
 
 EOF
 }
@@ -480,13 +480,18 @@ network_delete() {
     curl -s -X DELETE http://localhost:6675/v0.1/networks/$@
 }
 
-add_endpoint() {
-    curl -s -X POST http://localhost:6675/v0.1/endpoint/$@
+cluster_join() {
+    curl -s -X POST http://localhost:6675/v0.1/cluster/$@
 }
 
-del_endpoint() {
-    curl -s -X DELETE http://localhost:6675/v0.1/endpoint/$@
+cluster_leave() {
+    curl -s -X DELETE http://localhost:6675/v0.1/cluster/leave
 }
+
+cluster_listen() {
+    curl -s -X DELETE http://localhost:6675/v0.1/cluster/boostrap/$@
+}
+
 
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
@@ -663,6 +668,25 @@ case "$1" in
                 log_fatal "socketplane agent cluster { stop | start | logs | cluster }"
                 exit 1
                 ;;
+        esac
+        ;;
+
+    cluster)
+        shift 1
+        case "$1" in
+            join)
+                cluster_join $@
+                ;;
+            leave)
+                cluster_leave $@
+                ;;
+             listen)
+                cluster_listen $@
+                ;;
+            *)
+        log_fatal "socketplane cluster {  join [address] | leave | listen [address] }"
+        usage
+        exit 1
         esac
         ;;
     *)

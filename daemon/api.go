@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	API_VERSION      string = "/v0.1"
-	ENDPOINT_ADDRESS        = "endpointIP"
-	ENDPOINTS               = "/endpoints"
+	API_VERSION  string = "/v0.1"
+	NODE_ADDRESS        = "nodeAddr"
+	CLUSTER             = "/cluster"
+	BOOSTRAP            = "/boostrap"
+    BOOSTRAP_IFACE        = "iface"
 )
 
 type Response struct {
@@ -81,12 +83,13 @@ func createRouter(d *Daemon) *mux.Router {
 			"/configuration": setConfiguration,
 			"/connections":   createConnection,
 			"/networks":      createNetwork,
-			ENDPOINTS + "/{" + ENDPOINT_ADDRESS + "}", addEndpointHandler,
+			CLUSTER + "/{" + NODE_ADDRESS + "}": addClusterHandler,
+			CLUSTER + BOOSTRAP + "/{" + BOOSTRAP_IFACE + "}": addBoostrapHandler,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
 			"/networks/{id:.*}":    deleteNetwork,
-			ENDPOINTS + "/{" + ENDPOINT_ADDRESS + "}", delEndpointHandler,
+			CLUSTER + "/{" + NODE_ADDRESS + "}": delClusterHandler,
 		},
 	}
 
@@ -263,25 +266,39 @@ func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	return nil
 }
 
-func addEndpointHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+func addClusterHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
 	vars := mux.Vars(r)
-	endpointIP := vars["endpointIP"]
+	nodeAddr := vars["nodeAddr"]
 
-	ipaddr := net.ParseIP(endpointIP).To4()
-	n := datastore.EndPoint{}
-	err := n.NewMember(ipaddr)
+	ipaddr := net.ParseIP(nodeAddr).To4()
+	n := datastore.ClusterNode{}
+	err := n.NewClusterNode(ipaddr)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
 	return nil
 }
 
-func delEndpointHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+func delClusterHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
 	vars := mux.Vars(r)
-	endpointIP := vars[ENDPOINT_ADDRESS]
-	ipaddr := net.ParseIP(endpointIP).To4()
-	n := datastore.EndPoint{}
-	err := n.RemoveEndpoint(ipaddr)
+	nodeAddr := vars[NODE_ADDRESS]
+	ipaddr := net.ParseIP(nodeAddr).To4()
+	n := datastore.ClusterNode{}
+	err := n.RemoveClusterNode(ipaddr)
+	if err != nil {
+		return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+	return nil
+}
+
+func addBoostrapHandler(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	// TODO: Add boostrap / Listen config w/Interface arg
+	vars := mux.Vars(r)
+    // Interface to bind to
+	nodeAddr := vars[BOOSTRAP_IFACE]
+	ipaddr := net.ParseIP(nodeAddr).To4()
+	n := datastore.ClusterNode{}
+	err := n.NewClusterNode(ipaddr)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
