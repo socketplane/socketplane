@@ -39,14 +39,7 @@ You can change the number of systems created as follows:
     #or
     export SOCKETPLANE_NODES=10
 
-When starting the Socketplane agent using Vagrant, the install will be done in unattended mode.  During the install process a connection is made to the Docker Hub and and the Docker Hub credentials will need to be provided.  In unattended mode (e.g., using "vagrant up") you need to set these three environment variables:
-
-    export DOCKERHUB_USER=someuserid
-    export DOCKERHUB_PASS=someuserid_password
-    export DOCKERHUB_MAIL=someuserid_email
-
 To start the demo systems:
-
 
     git clone https://github.com/socketplane/socketplane
     cd socketplane
