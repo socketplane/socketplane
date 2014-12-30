@@ -191,6 +191,11 @@ install_ovs() {
     if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
         log_step "Open vSwitch already installed!"
     else
+        if ! command getenforce  2>/dev/null || [[ $(getenforce) =~ Enforcing|Permissive ]] ; then
+        log_step "Checking Open vSwitch dependencies.."
+        $pkg install policycoreutils-python
+        sudo semodule -d openvswitch  2>/dev/null || true
+        fi
         log_step "Installing Open vSwitch.."
         $pkg install $ovs | indent
     fi
