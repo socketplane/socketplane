@@ -72,6 +72,15 @@ COMMANDS:
     network agent stop
             Stops a running SocketPlane image. This will not delete the local image
 
+    cluster join [address]
+            Adds a node to a cluster. Provide the boostrap node to join. If one does not exist run 'network cluster listen'
+
+    cluster leave [address]
+            Removes a node from an an existing cluster
+
+    cluster listen [network interface ]
+            The boostrap interface to listen on for new nodes joining the cluster. If this is a new multihost installation use this option. Example. 'cluster listen eth0'
+
 EOF
 }
 
@@ -471,6 +480,19 @@ network_delete() {
     curl -s -X DELETE http://localhost:6675/v0.1/networks/$@
 }
 
+cluster_join() {
+    curl -s -X POST http://localhost:6675/v0.1/cluster/$@
+}
+
+cluster_leave() {
+    curl -s -X DELETE http://localhost:6675/v0.1/cluster/leave
+}
+
+cluster_listen() {
+    curl -s -X DELETE http://localhost:6675/v0.1/cluster/boostrap/$@
+}
+
+
 # Run as root only
 if [ "$(id -u)" != "0" ]; then
     log_fatal "Please run as root"
@@ -627,10 +649,44 @@ case "$1" in
             logs)
                 logs
                 ;;
+            endpoints)
+                shift
+                case "$1" in
+                    add)
+                        add_endpoint $@
+                        ;;
+                     delete)
+                        del_endpoint $@
+                        ;;
+                    *)
+                log_fatal "socketplane agent cluster {  join | leave | list }"
+                        usage
+                        exit 1
+                esac
+                ;;
             *)
-                log_fatal "\"socketplane agent\" {stop|start|logs}"
+                log_fatal "socketplane agent cluster { stop | start | logs | cluster }"
                 exit 1
                 ;;
+        esac
+        ;;
+
+    cluster)
+        shift 1
+        case "$1" in
+            join)
+                cluster_join $@
+                ;;
+            leave)
+                cluster_leave $@
+                ;;
+             listen)
+                cluster_listen $@
+                ;;
+            *)
+        log_fatal "socketplane cluster {  join [address] | leave | listen [address] }"
+        usage
+        exit 1
         esac
         ;;
     *)
