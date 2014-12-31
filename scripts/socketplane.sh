@@ -379,11 +379,15 @@ logs() {
 }
 
 info() {
-    containerId=$1
-    if [ -z "$containerId" ]; then
+    if [ -z "$1" ]; then
         curl -s -X GET http://localhost:6675/v0.1/connections | python -m json.tool
     else
-        curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+        containerId=$(docker ps -a --no-trunc=true | grep $1 | awk {' print $1'})
+        if [ -z "$containerId" ]; then
+            log_fatal "Could not find a Container with Id : $1"
+        else
+            curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+        fi
     fi
 }
 
