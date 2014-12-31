@@ -375,7 +375,7 @@ logs() {
         log_fatal "SocketPlane container is not running"
         exit 1
     fi
-    docker logs $(cat /var/run/socketplane/cid)
+    docker logs $@ $(cat /var/run/socketplane/cid)
 }
 
 info() {
@@ -629,7 +629,8 @@ case "$1" in
                 stop_socketplane_image
                 ;;
             logs)
-                logs
+                shift 1
+                logs $@
                 ;;
             *)
                 log_fatal "\"socketplane agent\" {stop|start|logs}"
