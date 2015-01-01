@@ -399,7 +399,7 @@ container_run() {
     fi
 
     attach="false"
-    if [ -z "$(echo "$@" | grep -e '-.*\?d.*\?')" ]; then
+    if [ -z "$(echo "$@" | grep -e '-[a-zA-Z]*d[a-zA-Z]*\s')" ]; then
         attach="true"
     fi
 
