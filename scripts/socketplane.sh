@@ -432,7 +432,7 @@ container_start() {
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
     json=$(curl -s -X GET http://localhost:6675/v0.1/connections/$cid)
-    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
+    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $7, $8, $9, $10, $11 }')
 
     attach $result $cPid
 
