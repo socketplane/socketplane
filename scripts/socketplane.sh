@@ -336,7 +336,7 @@ stop_socketplane_image() {
     done
 
     if [ -z $(docker ps | grep socketplane/socketplane | awk '{ print $1 }') ]; then
-        log_info "All Socketplane agent containers are stopped. Please run \"./socketplane.sh start\" to start them again"
+        log_info "All Socketplane agent containers are stopped. Please run \"socketplane agent start\" to start them again"
     fi
 }
 
