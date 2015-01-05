@@ -375,15 +375,19 @@ logs() {
         log_fatal "SocketPlane container is not running"
         exit 1
     fi
-    docker logs $(cat /var/run/socketplane/cid)
+    docker logs $@ $(cat /var/run/socketplane/cid)
 }
 
 info() {
-    containerId=$1
-    if [ -z "$containerId" ]; then
+    if [ -z "$1" ]; then
         curl -s -X GET http://localhost:6675/v0.1/connections | python -m json.tool
     else
-        curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+        containerId=$(docker ps -a --no-trunc=true | grep $1 | awk {' print $1'})
+        if [ -z "$containerId" ]; then
+            log_fatal "Could not find a Container with Id : $1"
+        else
+            curl -s -X GET http://localhost:6675/v0.1/connections/$containerId | python -m json.tool
+        fi
     fi
 }
 
@@ -395,7 +399,7 @@ container_run() {
     fi
 
     attach="false"
-    if [ -z "$(echo "$@" | grep -e '-.*\?d.*\?')" ]; then
+    if [ -z "$(echo "$@" | grep -e '-[a-zA-Z]*d[a-zA-Z]*\s')" ]; then
         attach="true"
     fi
 
@@ -625,7 +629,8 @@ case "$1" in
                 stop_socketplane_image
                 ;;
             logs)
-                logs
+                shift 1
+                logs $@
                 ;;
             *)
                 log_fatal "\"socketplane agent\" {stop|start|logs}"
