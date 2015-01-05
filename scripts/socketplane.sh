@@ -33,8 +33,8 @@ COMMANDS:
     deps
             Show SocketPlane dependencies
 
-    agent {stop|start|logs}
-            Start/Stop the SocketPlane container or show its logs
+    agent {stop|start|restart|logs}
+            Start/Stop/Restart the SocketPlane container or show its logs
 
     info [container_id]
             Show SocketPlane info for all containers, or for a given container_id
@@ -628,12 +628,16 @@ case "$1" in
             stop)
                 stop_socketplane_image
                 ;;
+            restart)
+                stop_socketplane_image
+                start_socketplane_image
+                ;;
             logs)
                 shift 1
                 logs $@
                 ;;
             *)
-                log_fatal "\"socketplane agent\" {stop|start|logs}"
+                log_fatal "\"socketplane agent\" {stop|start|restart|logs}"
                 exit 1
                 ;;
         esac
