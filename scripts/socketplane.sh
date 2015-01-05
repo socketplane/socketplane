@@ -33,8 +33,8 @@ COMMANDS:
     deps
             Show SocketPlane dependencies
 
-    agent {stop|start|logs}
-            Start/Stop the SocketPlane container or show its logs
+    agent {stop|start|restart|logs}
+            Start/Stop/Restart the SocketPlane container or show its logs
 
     info [container_id]
             Show SocketPlane info for all containers, or for a given container_id
@@ -432,7 +432,9 @@ container_start() {
     cName=$(docker inspect --format='{{ .Name }}' $cid)
 
     json=$(curl -s -X GET http://localhost:6675/v0.1/connections/$cid)
-    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10 }')
+    result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $7, $8, $9, $10, $11 }')
+    
+echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $6, $7, $8, $9, $10, $11 }'
 
     attach $result $cPid
 
@@ -623,6 +625,10 @@ case "$1" in
                 ;;
             stop)
                 stop_socketplane_image
+                ;;
+            restart)
+                stop_socketplane_image
+                start_socketplane_image
                 ;;
             logs)
                 logs
