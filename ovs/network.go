@@ -84,6 +84,9 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 
 		log.Debugf("Setting address %s on %s", gatewayNet.String(), network.ID)
 
+		if err = SetMtu(network.ID, mtu); err != nil {
+			return network, err
+		}
 		if err = SetInterfaceIp(network.ID, gatewayNet.String()); err != nil {
 			return network, err
 		}
