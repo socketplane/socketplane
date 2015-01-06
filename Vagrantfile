@@ -80,6 +80,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.define "socketplane-#{n+1}" do |socketplane|
       socketplane.vm.box = "socketplane/ubuntu-14.10"
       socketplane.vm.box_url = "https://socketplane.s3.amazonaws.com/vagrant/virtualbox/ubuntu-14.10.box"
+      # In case you run into "SSL certificate problem: unable to get local issuer certificate"
+      # and you do not have the time to address the issue properly, uncomment the following line
+      # socketplane.vm.box_download_insecure = true
       socketplane_ip = socketplane_ips[n]
       socketplane_index = n+1
       socketplane.vm.hostname = "socketplane-#{socketplane_index}"
