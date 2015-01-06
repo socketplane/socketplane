@@ -39,7 +39,8 @@ var gatewayAddrs = []string{
 	"192.168.44.1/24",
 }
 
-const mtu = 1514
+// Setting a mtu value to 1440 temporarily to resolve #71
+const mtu = 1440
 const defaultBridgeName = "docker0-ovs"
 
 type Bridge struct {

@@ -83,7 +83,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       socketplane_ip = socketplane_ips[n]
       socketplane_index = n+1
       socketplane.vm.hostname = "socketplane-#{socketplane_index}"
-      socketplane.vm.network :private_network, ip: "#{socketplane_ip}", virtualbox__intnet: true
+      socketplane.vm.network :private_network, ip: "#{socketplane_ip}", virtualbox__intnet: "true"
       socketplane.vm.provider :virtualbox do |vb|
         vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
       end
