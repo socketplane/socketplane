@@ -22,21 +22,9 @@ fi
 
 if command_exists socketplane; then
     echo >&2 'Warning: "socketplane" command appears to already exist.'
-    while true; do
-        read -p "Would you like to re-install socketplane (y/n) " yn
-        case $yn in
-            [Yy]* )
-                cleanup
-                break
-                ;;
-            [Nn]* )
-                exit 1
-                ;;
-            * )
-                echo "Please answer yes or no."
-                ;;
-        esac
-    done
+    echo >&2 'CRTL+C to exit out of this install.  Otherwise Socketplane will be reinstalled in 20 seconds'
+    sleep 20
+    cleanup
 fi
 
 curl=''
@@ -65,4 +53,14 @@ if [ ! -f /usr/bin/socketplane ]; then
 fi
 
 sleep 3
-socketplane install
+
+# Test if allow input from the terminal (0 = STDIN)
+
+if [ -t 0 ]; then
+  socketplane install
+else
+  if [ -z $BOOTSTRAP ]; then
+     BOOTSTRAP=false
+  fi
+  socketplane install unattended
+fi

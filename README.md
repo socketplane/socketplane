@@ -88,12 +88,22 @@ While Golang, Docker and OVS can run on many operating systems, we are currently
 * Clustering over NAT adapter will not work. Hence, the Virtualbox VMs must have either **Host-Only Adapter (or) Internal Network (or) Bridged adapter** installed for clustering to work.
 * The VMs/Hosts must have **unique hostname**. Make sure that /etc/hosts in the VMs have the unique hostname updated.
 
+    Fist Node:
+    curl -sSL http://get.socketplane.io/ | sudo BOOTSTRAP=true sh
+
+    Subsequent Nodes:
     curl -sSL http://get.socketplane.io/ | sudo sh
 
 or
 
+    Fist Node:
+    wget -qO- http://get.socketplane.io/ | sudo BOOTSTRAP=true sh
+
+    Subsequent Nodes:
     wget -qO- http://get.socketplane.io/ | sudo sh
 
+> Warning: The BOOTSTRAP=true should be used on the first node only. Without it, it won't work. If used on subsequent nodes, bad things will happen.
+ 
 This should ideally start the Socketplane agent container as well.
 You can use **sudo docker ps | grep socketplane** command to check the status.
 If, the agent isnt already running, you can install it using the following command :
