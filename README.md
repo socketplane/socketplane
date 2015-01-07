@@ -27,7 +27,9 @@ Finally, we've implemented a distributed IP address management solution that ena
 
 > Note: As we previously mentioned, it's not an *ideal* approach, but it allows people to start kicking the tyres as soon as possible. All of the functionality in `socketplane.sh` will move in to our Golang core over time.
 
-[ See a Demo Here ] ( https://www.youtube.com/watch?v=ukITRl58ntg ) 
+[ See Getting Started Demo Here ] ( https://www.youtube.com/watch?v=ukITRl58ntg ) 
+
+[ See Socketplane with a LAMP Stack Demo Here ] ( https://www.youtube.com/watch?v=5uzUSk3NjD0 ) 
 
 ## Installation
 
