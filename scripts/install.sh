@@ -22,7 +22,9 @@ fi
 
 if command_exists socketplane; then
     echo >&2 'Warning: "socketplane" command appears to already exist.'
-    echo >&2 'Warning: "Please run "socketplane uninstall first'
+    echo >&2 'CRTL+C to exit out of this install.  Otherwise Socketplane will be reinstalled in 20 seconds'
+    sleep 20
+    cleanup
 fi
 
 curl=''
