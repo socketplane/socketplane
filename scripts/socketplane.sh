@@ -193,7 +193,7 @@ install_ovs() {
     else
         if ! command getenforce  2>/dev/null || [[ $(getenforce) =~ Enforcing|Permissive ]] ; then
         log_step "Checking Open vSwitch dependencies.."
-        $pkg install policycoreutils-python
+        $pkg install policycoreutils-python 2>/dev/null || true
         sudo semodule -d openvswitch  2>/dev/null || true
         fi
         log_step "Installing Open vSwitch.."
