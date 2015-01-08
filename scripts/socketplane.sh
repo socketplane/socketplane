@@ -191,10 +191,10 @@ install_ovs() {
     if command_exists ovsdb-server && command_exists ovs-vswitchd ; then
         log_step "Open vSwitch already installed!"
     else
-        if ! command getenforce  2>/dev/null || [[ $(getenforce) =~ Enforcing|Permissive ]] ; then
-        log_step "Checking Open vSwitch dependencies.."
-        $pkg install policycoreutils-python
-        sudo semodule -d openvswitch  2>/dev/null || true
+        if command_exists getenforce && [ -z $(getenforce | grep -E 'Enforcing|Permissive') ]  ; then
+            log_step "Checking Open vSwitch dependencies.."
+            $pkg install $policy
+            sudo semodule -d openvswitch  2>/dev/null || true
         fi
         log_step "Installing Open vSwitch.."
         $pkg install $ovs | indent
@@ -518,12 +518,14 @@ fi
 
 case "$lsb_dist" in
     debian|ubuntu)
-        pkg="apt-get -q -y"
+        pkg="apt-get -q -y --force-yes"
         ovs="openvswitch-switch"
+        policy="policycoreutils"
         ;;
     fedora)
         pkg="yum -q -y"
         ovs="openvswitch"
+        policy="policycoreutils-python"
         ;;
 esac
 
