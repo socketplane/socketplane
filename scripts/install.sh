@@ -60,7 +60,7 @@ if [ -t 0 ]; then
   socketplane install
 else
   if [ -z $BOOTSTRAP ]; then
-     BOOTSTRAP=false
+     export BOOTSTRAP=false
   fi
   socketplane install unattended
 fi
