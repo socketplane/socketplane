@@ -192,7 +192,7 @@ type ConnectionContext struct {
 	Result     chan *Connection
 }
 
-func RunConnectionHandler(d *Daemon) {
+func ConnectionRPCHandler(d *Daemon) {
 	for {
 		c := <-d.cC
 

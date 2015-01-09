@@ -128,7 +128,9 @@ func (m *Memberlist) pushPullTrigger(stop <-chan struct{}) {
 
 	// Tick using a dynamic timer
 	for {
+		m.nodeLock.RLock()
 		tickTime := pushPullScale(interval, len(m.nodes))
+		m.nodeLock.RUnlock()
 		select {
 		case <-time.After(tickTime):
 			m.pushPull()
@@ -359,6 +361,29 @@ func (m *Memberlist) pushPullNode(addr []byte, port uint16, join bool) error {
 
 	if err := m.verifyProtocol(remote); err != nil {
 		return err
+	}
+
+	// Invoke the merge delegate if any
+	if join && m.config.Merge != nil {
+		nodes := make([]*Node, len(remote))
+		for idx, n := range remote {
+			nodes[idx] = &Node{
+				Name: n.Name,
+				Addr: n.Addr,
+				Port: n.Port,
+				Meta: n.Meta,
+				PMin: n.Vsn[0],
+				PMax: n.Vsn[1],
+				PCur: n.Vsn[2],
+				DMin: n.Vsn[3],
+				DMax: n.Vsn[4],
+				DCur: n.Vsn[5],
+			}
+		}
+		if m.config.Merge.NotifyMerge(nodes) {
+			m.logger.Printf("[WARN] memberlist: Cluster merge canceled")
+			return fmt.Errorf("Merge canceled")
+		}
 	}
 
 	// Merge the state

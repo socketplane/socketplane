@@ -1,6 +1,8 @@
 package datastore
 
 import (
+	"os"
+
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
@@ -22,7 +24,15 @@ func Join(address string) error {
 }
 
 func Leave() error {
-	return ecc.Leave()
+	if err := ecc.Leave(); err != nil {
+		log.Error(err)
+		return err
+	}
+	if err := os.RemoveAll(dataDir); err != nil {
+		log.Errorf("Error deleting data directory %s", err)
+		return err
+	}
+	return nil
 }
 
 type eccListener struct {

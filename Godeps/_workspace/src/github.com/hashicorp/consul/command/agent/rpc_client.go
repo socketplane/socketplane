@@ -3,10 +3,12 @@ package agent
 import (
 	"bufio"
 	"fmt"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/logutils"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/go-msgpack/codec"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/logutils"
 	"log"
 	"net"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -34,7 +36,7 @@ type seqHandler interface {
 type RPCClient struct {
 	seq uint64
 
-	conn      *net.TCPConn
+	conn      net.Conn
 	reader    *bufio.Reader
 	writer    *bufio.Writer
 	dec       *codec.Decoder
@@ -79,16 +81,26 @@ func (c *RPCClient) send(header *requestHeader, obj interface{}) error {
 // NewRPCClient is used to create a new RPC client given the address.
 // This will properly dial, handshake, and start listening
 func NewRPCClient(addr string) (*RPCClient, error) {
+	var conn net.Conn
+	var err error
+
+	if envAddr := os.Getenv("CONSUL_RPC_ADDR"); envAddr != "" {
+		addr = envAddr
+	}
+
 	// Try to dial to agent
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
+	mode := "tcp"
+	if strings.HasPrefix(addr, "/") {
+		mode = "unix"
+	}
+	if conn, err = net.Dial(mode, addr); err != nil {
 		return nil, err
 	}
 
 	// Create the client
 	client := &RPCClient{
 		seq:        0,
-		conn:       conn.(*net.TCPConn),
+		conn:       conn,
 		reader:     bufio.NewReader(conn),
 		writer:     bufio.NewWriter(conn),
 		dispatch:   make(map[uint64]seqHandler),
@@ -174,6 +186,49 @@ func (c *RPCClient) WANMembers() ([]Member, error) {
 
 	err := c.genericRPC(&header, nil, &resp)
 	return resp.Members, err
+}
+
+func (c *RPCClient) ListKeys() (keyringResponse, error) {
+	header := requestHeader{
+		Command: listKeysCommand,
+		Seq:     c.getSeq(),
+	}
+	var resp keyringResponse
+	err := c.genericRPC(&header, nil, &resp)
+	return resp, err
+}
+
+func (c *RPCClient) InstallKey(key string) (keyringResponse, error) {
+	header := requestHeader{
+		Command: installKeyCommand,
+		Seq:     c.getSeq(),
+	}
+	req := keyringRequest{key}
+	var resp keyringResponse
+	err := c.genericRPC(&header, &req, &resp)
+	return resp, err
+}
+
+func (c *RPCClient) UseKey(key string) (keyringResponse, error) {
+	header := requestHeader{
+		Command: useKeyCommand,
+		Seq:     c.getSeq(),
+	}
+	req := keyringRequest{key}
+	var resp keyringResponse
+	err := c.genericRPC(&header, &req, &resp)
+	return resp, err
+}
+
+func (c *RPCClient) RemoveKey(key string) (keyringResponse, error) {
+	header := requestHeader{
+		Command: removeKeyCommand,
+		Seq:     c.getSeq(),
+	}
+	req := keyringRequest{key}
+	var resp keyringResponse
+	err := c.genericRPC(&header, &req, &resp)
+	return resp, err
 }
 
 // Leave is used to trigger a graceful leave and shutdown

@@ -3,8 +3,6 @@ package consul
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 	"log"
 	"math/rand"
 	"os"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
 const (
@@ -93,7 +94,7 @@ func NewClient(config *Config) (*Client, error) {
 	// Create the tlsConfig
 	var tlsConfig *tls.Config
 	var err error
-	if tlsConfig, err = config.OutgoingTLSConfig(); err != nil {
+	if tlsConfig, err = config.tlsConfig().OutgoingTLSConfig(); err != nil {
 		return nil, err
 	}
 
@@ -138,6 +139,7 @@ func (c *Client) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.SnapshotPath = filepath.Join(c.config.DataDir, path)
 	conf.ProtocolVersion = protocolVersionMap[c.config.ProtocolVersion]
 	conf.RejoinAfterLeave = c.config.RejoinAfterLeave
+	conf.Merge = &lanMergeDelegate{logger: c.logger, dc: c.config.Datacenter}
 	if err := ensurePath(conf.SnapshotPath, false); err != nil {
 		return nil, err
 	}
@@ -204,6 +206,16 @@ func (c *Client) RemoveFailedNode(node string) error {
 // UserEvent is used to fire an event via the Serf layer
 func (c *Client) UserEvent(name string, payload []byte) error {
 	return c.serf.UserEvent(userEventName(name), payload, false)
+}
+
+// KeyManagerLAN returns the LAN Serf keyring manager
+func (c *Client) KeyManagerLAN() *serf.KeyManager {
+	return c.serf.KeyManager()
+}
+
+// Encrypted determines if gossip is encrypted
+func (c *Client) Encrypted() bool {
+	return c.serf.EncryptionEnabled()
 }
 
 // lanEventHandler is used to handle events from the lan Serf cluster

@@ -227,6 +227,11 @@ func NewRaft(conf *Config, fsm FSM, logs LogStore, stable StableStore, snaps Sna
 		return nil, err
 	}
 
+	// Setup a heartbeat fast-path to avoid head-of-line
+	// blocking where possible. It MUST be safe for this
+	// to be called concurrently with a blocking RPC.
+	trans.SetHeartbeatHandler(r.processHeartbeat)
+
 	// Start the background work
 	r.goFunc(r.run)
 	r.goFunc(r.runFSM)
@@ -463,6 +468,12 @@ func (r *Raft) Stats() map[string]string {
 		s["last_contact"] = fmt.Sprintf("%v", time.Now().Sub(last))
 	}
 	return s
+}
+
+// LastIndex returns the last index in stable storage.
+// Either from the last log or from the last snapshot.
+func (r *Raft) LastIndex() uint64 {
+	return r.getLastIndex()
 }
 
 // runFSM is a long running goroutine responsible for applying logs
@@ -937,7 +948,12 @@ func (r *Raft) checkLeaderLease() time.Duration {
 				maxDiff = diff
 			}
 		} else {
-			r.logger.Printf("[WARN] raft: Failed to contact %v in %v", peer, diff)
+			// Log at least once at high value, then debug. Otherwise it gets very verbose.
+			if diff <= 3*r.conf.LeaderLeaseTimeout {
+				r.logger.Printf("[WARN] raft: Failed to contact %v in %v", peer, diff)
+			} else {
+				r.logger.Printf("[DEBUG] raft: Failed to contact %v in %v", peer, diff)
+			}
 		}
 		metrics.AddSample([]string{"raft", "leader", "lastContact"}, float32(diff/time.Millisecond))
 	}
@@ -1158,6 +1174,26 @@ func (r *Raft) processRPC(rpc RPC) {
 		r.installSnapshot(rpc, cmd)
 	default:
 		r.logger.Printf("[ERR] raft: Got unexpected command: %#v", rpc.Command)
+		rpc.Respond(nil, fmt.Errorf("unexpected command"))
+	}
+}
+
+// processHeartbeat is a special handler used just for heartbeat requests
+// so that they can be fast-pathed if a transport supports it
+func (r *Raft) processHeartbeat(rpc RPC) {
+	// Check if we are shutdown, just ignore the RPC
+	select {
+	case <-r.shutdownCh:
+		return
+	default:
+	}
+
+	// Ensure we are only handling a heartbeat
+	switch cmd := rpc.Command.(type) {
+	case *AppendEntriesRequest:
+		r.appendEntries(rpc, cmd)
+	default:
+		r.logger.Printf("[ERR] raft: Expected heartbeat, got command: %#v", rpc.Command)
 		rpc.Respond(nil, fmt.Errorf("unexpected command"))
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/consul-api"
+	consulapi "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/api"
 )
 
 const (

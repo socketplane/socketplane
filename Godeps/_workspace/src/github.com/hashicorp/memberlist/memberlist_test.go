@@ -3,6 +3,7 @@ package memberlist
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -339,21 +340,79 @@ func TestMemberlist_Join(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts
 	if len(m2.Members()) != 2 {
 		t.Fatalf("should have 2 nodes! %v", m2.Members())
+	}
+}
+
+type CustomMergeDelegate struct {
+	invoked bool
+}
+
+func (c *CustomMergeDelegate) NotifyMerge(nodes []*Node) (cancel bool) {
+	log.Printf("Cancel merge")
+	c.invoked = true
+	return true
+}
+
+func TestMemberlist_Join_Cancel(t *testing.T) {
+	m1 := GetMemberlist(t)
+	merge1 := &CustomMergeDelegate{}
+	m1.config.Merge = merge1
+	m1.setAlive()
+	m1.schedule()
+	defer m1.Shutdown()
+
+	// Create a second node
+	c := DefaultLANConfig()
+	addr1 := getBindAddr()
+	c.Name = addr1.String()
+	c.BindAddr = addr1.String()
+	c.BindPort = m1.config.BindPort
+
+	m2, err := Create(c)
+	if err != nil {
+		t.Fatal("unexpected err: %s", err)
+	}
+	merge2 := &CustomMergeDelegate{}
+	m2.config.Merge = merge2
+	defer m2.Shutdown()
+
+	num, err := m2.Join([]string{m1.config.BindAddr})
+	if num != 0 {
+		t.Fatalf("unexpected 0: %d", num)
+	}
+	if err.Error() != "Merge canceled" {
+		t.Fatalf("unexpected err: %s", err)
+	}
+
+	// Check the hosts
+	if len(m2.Members()) != 1 {
+		t.Fatalf("should have 1 nodes! %v", m2.Members())
+	}
+	if len(m1.Members()) != 1 {
+		t.Fatalf("should have 1 nodes! %v", m1.Members())
+	}
+
+	// Check delegate invocation
+	if !merge1.invoked {
+		t.Fatalf("should invoke delegate")
+	}
+	if !merge2.invoked {
+		t.Fatalf("should invoke delegate")
 	}
 }
 
@@ -410,16 +469,16 @@ func TestMemberlist_Leave(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts
@@ -462,16 +521,16 @@ func TestMemberlist_JoinShutdown(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts
@@ -658,14 +717,14 @@ func TestMemberlist_UserData(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
@@ -718,16 +777,16 @@ func TestMemberlist_SendTo(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts
@@ -807,7 +866,7 @@ func TestMemberlist_Join_DeadNode(t *testing.T) {
 
 	num, err := m1.Join([]string{addr1.String()})
 	if num != 0 {
-		t.Fatal("unexpected 0: %d", num)
+		t.Fatalf("unexpected 0: %d", num)
 	}
 	if err == nil {
 		t.Fatal("expect err")
@@ -834,16 +893,16 @@ func TestMemberlist_Join_Proto1And2(t *testing.T) {
 
 	m2, err := Create(c)
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{m1.config.BindAddr})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts
@@ -871,7 +930,7 @@ func TestMemberlist_Join_IPv6(t *testing.T) {
 		}
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m1.Shutdown()
 
@@ -888,16 +947,16 @@ func TestMemberlist_Join_IPv6(t *testing.T) {
 		}
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 	defer m2.Shutdown()
 
 	num, err := m2.Join([]string{fmt.Sprintf("%s:%d", m1.config.BindAddr, 23456)})
 	if num != 1 {
-		t.Fatal("unexpected 1: %d", num)
+		t.Fatalf("unexpected 1: %d", num)
 	}
 	if err != nil {
-		t.Fatal("unexpected err: %s", err)
+		t.Fatalf("unexpected err: %s", err)
 	}
 
 	// Check the hosts

@@ -9,8 +9,8 @@ import (
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 )
 
-// ACL endpoint is used to manipulate ACLs
-type ACL struct {
+type ACL struct // ACL endpoint is used to manipulate ACLs
+{
 	srv *Server
 }
 
@@ -139,6 +139,8 @@ func (a *ACL) Get(args *structs.ACLSpecificRequest,
 			reply.Index = index
 			if acl != nil {
 				reply.ACLs = structs.ACLs{acl}
+			} else {
+				reply.ACLs = nil
 			}
 			return err
 		})

@@ -1,12 +1,14 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/consul-api"
 	"github.com/hashicorp/consul/testutil"
+	consulapi "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/api"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/command/agent"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/mitchellh/cli"
 )
 
@@ -33,6 +35,43 @@ func TestExecCommandRun(t *testing.T) {
 	}
 }
 
+func TestExecCommandRun_CrossDC(t *testing.T) {
+	a1 := testAgent(t)
+	defer a1.Shutdown()
+
+	a2 := testAgentWithConfig(t, func(c *agent.Config) {
+		c.Datacenter = "dc2"
+	})
+	defer a2.Shutdown()
+
+	// Join over the WAN
+	wanAddr := fmt.Sprintf("%s:%d", a1.config.BindAddr, a1.config.Ports.SerfWan)
+	n, err := a2.agent.JoinWAN([]string{wanAddr})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("bad %d", n)
+	}
+
+	waitForLeader(t, a1.httpAddr)
+	waitForLeader(t, a2.httpAddr)
+
+	ui := new(cli.MockUi)
+	c := &ExecCommand{Ui: ui}
+	args := []string{"-http-addr=" + a1.httpAddr,
+		"-wait=400ms", "-datacenter=dc2", "uptime"}
+
+	code := c.Run(args)
+	if code != 0 {
+		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
+	}
+
+	if !strings.Contains(ui.OutputWriter.String(), "load") {
+		t.Fatalf("bad: %#v", ui.OutputWriter.String())
+	}
+}
+
 func waitForLeader(t *testing.T, httpAddr string) {
 	client, err := HTTPClient(httpAddr)
 	if err != nil {
@@ -40,10 +79,7 @@ func waitForLeader(t *testing.T, httpAddr string) {
 	}
 	testutil.WaitForResult(func() (bool, error) {
 		_, qm, err := client.Catalog().Nodes(nil)
-		if err != nil {
-			return false, err
-		}
-		return qm.KnownLeader, nil
+		return err == nil && qm.KnownLeader && qm.LastIndex > 0, err
 	}, func(err error) {
 		t.Fatalf("failed to find leader: %v", err)
 	})
@@ -110,6 +146,60 @@ func TestExecCommand_Sessions(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if se == nil || se.Name != "Remote Exec" {
+		t.Fatalf("bad: %v", se)
+	}
+
+	c.sessionID = id
+	err = c.destroySession()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	se, _, err = client.Session().Info(id, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if se != nil {
+		t.Fatalf("bad: %v", se)
+	}
+}
+
+func TestExecCommand_Sessions_Foreign(t *testing.T) {
+	a1 := testAgent(t)
+	defer a1.Shutdown()
+	waitForLeader(t, a1.httpAddr)
+
+	client, err := HTTPClient(a1.httpAddr)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	ui := new(cli.MockUi)
+	c := &ExecCommand{
+		Ui:     ui,
+		client: client,
+	}
+
+	c.conf.foreignDC = true
+	c.conf.localDC = "dc1"
+	c.conf.localNode = "foo"
+
+	var id string
+	testutil.WaitForResult(func() (bool, error) {
+		id, err = c.createSession()
+		if err != nil && strings.Contains(err.Error(), "Failed to find Consul server") {
+			err = nil
+		}
+		return id != "", err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	se, _, err := client.Session().Info(id, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if se == nil || se.Name != "Remote Exec via foo@dc1" {
 		t.Fatalf("bad: %v", se)
 	}
 

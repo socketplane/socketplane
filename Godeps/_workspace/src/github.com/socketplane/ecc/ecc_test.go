@@ -1,9 +1,9 @@
 package ecc
 
 import (
+	"bytes"
 	"testing"
 )
-import "bytes"
 
 func TestStart(t *testing.T) {
 	err := Start(true, true, "", "data-dir")
@@ -65,5 +65,13 @@ func TestPut(t *testing.T) {
 
 func TestCleanup(t *testing.T) {
 	Delete("ipam", "test")
+	Leave()
+}
+
+func TestRestart(t *testing.T) {
+	err := Start(true, true, "", "data-dir")
+	if err != nil {
+		t.Error("Error starting Consul ", err)
+	}
 	Leave()
 }
