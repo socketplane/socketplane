@@ -11,18 +11,19 @@ import (
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/socketplane/socketplane/datastore"
-	"github.com/socketplane/socketplane/ovs"
 )
 
 type Daemon struct {
 	Configuration *Configuration
 	Connections   map[string]*Connection
+	cC            chan *ConnectionContext
 }
 
 func NewDaemon() *Daemon {
 	return &Daemon{
 		&Configuration{},
 		map[string]*Connection{},
+		make(chan *ConnectionContext),
 	}
 }
 
@@ -36,6 +37,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 
 	var bindInterface string
 	go ServeAPI(d)
+
 	go func() {
 		if ctx.String("iface") != "auto" {
 			bindInterface = ctx.String("iface")
@@ -82,16 +84,19 @@ func (d *Daemon) Run(ctx *cli.Context) {
 			<-serialChan
 			log.Printf("Non-Bootstrap node admitted into cluster")
 		}
-		err := ovs.CreateBridge()
+		err := CreateBridge()
 		if err != nil {
 			log.Error(err.Error)
 		}
 		d.populateConnections()
-		_, err = ovs.CreateDefaultNetwork()
+		_, err = CreateDefaultNetwork()
 		if err != nil {
 			log.Error(err.Error)
 		}
 	}()
+
+	go RunConnectionHandler(d)
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -141,7 +146,7 @@ func identifyInterfaceToBind() *net.Interface {
 }
 
 func (d *Daemon) populateConnections() {
-	for key, val := range ovs.ContextCache {
+	for key, val := range ContextCache {
 		connection := &Connection{}
 		err := json.Unmarshal([]byte(val), connection)
 		if err == nil {

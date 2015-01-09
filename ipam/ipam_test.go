@@ -9,13 +9,15 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	err := datastore.Init("eth1", true)
+	t.Skip("Skipping test while dependent on Consul")
+	err := datastore.Init("eth0", true)
 	if err != nil {
 		t.Error("Error starting Consul ", err)
 	}
 }
 
 func TestIpRelease(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	count := 25
 	_, ipNet, _ := net.ParseCIDR("192.170.0.0/24")
 	for i := 1; i < count; i++ {
@@ -40,6 +42,7 @@ func TestIpRelease(t *testing.T) {
 }
 
 func TestIpReleasePartialMask(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	count := 25
 	_, ipNet, _ := net.ParseCIDR("192.170.32.0/20")
 	for i := 1; i < count; i++ {
@@ -64,6 +67,7 @@ func TestIpReleasePartialMask(t *testing.T) {
 }
 
 func TestGetIpFullMask(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	count := 2500
 	for i := 1; i < count; i++ {
 		_, ipNet, _ := net.ParseCIDR("192.168.0.0/16")
@@ -76,6 +80,7 @@ func TestGetIpFullMask(t *testing.T) {
 }
 
 func TestGetIpPartialMask(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	count := 1000
 	for i := 1; i < count; i++ {
 		_, ipNet, _ := net.ParseCIDR("192.169.32.0/20")
@@ -88,6 +93,7 @@ func TestGetIpPartialMask(t *testing.T) {
 }
 
 func TestGetIpDeprecated(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	for i := 1; i < 250; i++ {
 		addressStr, err := GetAnAddress("192.167.1.0/24")
 		if err != nil {
@@ -102,6 +108,7 @@ func TestGetIpDeprecated(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
+	t.Skip("Skipping test while dependent on Consul")
 	ecc.Delete(dataStore, "192.170.0.0/24")
 	ecc.Delete(dataStore, "192.170.32.0/20")
 	ecc.Delete(dataStore, "192.167.1.0/24")

@@ -81,43 +81,54 @@ func TestGetConnections(t *testing.T) {
 
 	createRouter(daemon).ServeHTTP(response, request)
 
-	if response.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected %v:\n\tReceived: %v", "501", response.Code)
+	if response.Code != http.StatusOK {
+		t.Fatalf("Expected %v:\n\tReceived: %v", "200", response.Code)
 	}
 }
 
-func TestGetConnection(t *testing.T) {
+func TestCreateConnection(t *testing.T) {
+	daemon := NewDaemon()
+	connection := &Connection{
+		ContainerID:   "abc123456",
+		ContainerName: "test_container",
+		ContainerPID:  "1234",
+		Network:       "default",
+	}
+	data, _ := json.Marshal(connection)
+	request, _ := http.NewRequest("POST", "/v0.1/connections", bytes.NewReader(data))
+	response := httptest.NewRecorder()
+
+	go createRouter(daemon).ServeHTTP(response, request)
+
+	foo := <-daemon.cC
+	if foo == nil {
+		t.Fatalf("Object taken from channel is nil")
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("Expected %v:\n\tReceived: %v:\n\t%v", "200", response.Code, response.Body)
+	}
+}
+
+func TestGetConnectionNonExistent(t *testing.T) {
 	daemon := NewDaemon()
 	request, _ := http.NewRequest("GET", "/v0.1/connections/abc123", nil)
 	response := httptest.NewRecorder()
 
 	createRouter(daemon).ServeHTTP(response, request)
 
-	if response.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected %v:\n\tReceived: %v", "501", response.Code)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("Expected %v:\n\tReceived: %v", "404", response.Code)
 	}
 }
 
-func TestCreateConnection(t *testing.T) {
-	daemon := NewDaemon()
-	request, _ := http.NewRequest("POST", "/v0.1/connections", nil)
-	response := httptest.NewRecorder()
-
-	createRouter(daemon).ServeHTTP(response, request)
-
-	if response.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected %v:\n\tReceived: %v", "501", response.Code)
-	}
-}
-
-func TestDeleteConnection(t *testing.T) {
+func TestDeleteConnectionNonExistent(t *testing.T) {
 	daemon := NewDaemon()
 	request, _ := http.NewRequest("DELETE", "/v0.1/connections/abc123", nil)
 	response := httptest.NewRecorder()
 
 	createRouter(daemon).ServeHTTP(response, request)
 
-	if response.Code != http.StatusNotImplemented {
-		t.Fatalf("Expected %v:\n\tReceived: %v", "501", response.Code)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("Expected %v:\n\tReceived: %v", "404", response.Code)
 	}
 }

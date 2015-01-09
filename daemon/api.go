@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
-
+	//	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/socketplane/socketplane/ovs"
 )
 
 const API_VERSION string = "/v0.1"
@@ -26,12 +24,12 @@ type Configuration struct {
 }
 
 type Connection struct {
-	ContainerID       string            `json:"container_id"`
-	ContainerName     string            `json:"container_name"`
-	ContainerPID      string            `json:"container_pid"`
-	Network           string            `json:"network"`
-	OvsPortID         string            `json:"ovs_port_id"`
-	ConnectionDetails ovs.OvsConnection `json:"connection_details"`
+	ContainerID       string        `json:"container_id"`
+	ContainerName     string        `json:"container_name"`
+	ContainerPID      string        `json:"container_pid"`
+	Network           string        `json:"network"`
+	OvsPortID         string        `json:"ovs_port_id"`
+	ConnectionDetails OvsConnection `json:"connection_details"`
 }
 
 type apiError struct {
@@ -147,26 +145,24 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
-	pid, err := strconv.Atoi(cfg.ContainerPID)
-	if err != nil {
-		return &apiError{http.StatusInternalServerError, err.Error()}
-	}
 
 	if cfg.Network == "" {
-		cfg.Network = ovs.DefaultNetworkName
+		cfg.Network = DefaultNetworkName
 	}
-	ovsConnection, err := ovs.AddConnection(pid, cfg.Network)
-	if err != nil && ovsConnection.Name == "" {
-		return &apiError{http.StatusInternalServerError, err.Error()}
+
+	context := &ConnectionContext{
+		ConnectionAdd,
+		cfg,
+		make(chan *Connection),
 	}
-	cfg.OvsPortID = ovsConnection.Name
-	cfg.ConnectionDetails = ovsConnection
-	d.Connections[cfg.ContainerID] = cfg
+	d.cC <- context
 
-	data, _ := json.Marshal(cfg)
-	ovs.UpdateConnectionContext(ovsConnection.Name, cfg.ContainerID, string(data[:]))
+	result := <-context.Result
 
+	location := fmt.Sprintf("%S/%s", r.URL.String(), cfg.ContainerID)
+	data, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Location", location)
 	w.Write(data)
 	return nil
 }
@@ -177,19 +173,20 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 
 	connection, ok := d.Connections[containerID]
 	if !ok {
-		return nil
+		return &apiError{http.StatusNotFound, "Container Not Found"}
 	}
 
-	err := ovs.DeleteConnection(connection.ConnectionDetails)
-	if err != nil {
-		return &apiError{http.StatusInternalServerError, err.Error()}
+	context := &ConnectionContext{
+		ConnectionDelete,
+		connection,
+		make(chan *Connection),
 	}
-	delete(d.Connections, containerID)
+	d.cC <- context
 	return nil
 }
 
 func getNetworks(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
-	networks, err := ovs.GetNetworks()
+	networks, err := GetNetworks()
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -206,7 +203,7 @@ func getNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
 	vars := mux.Vars(r)
 	networkID := vars["id"]
 
-	networks, err := ovs.GetNetwork(networkID)
+	networks, err := GetNetwork(networkID)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -223,7 +220,7 @@ func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	if r.Body == nil {
 		return &apiError{http.StatusBadRequest, "Request body is empty"}
 	}
-	networkRequest := &ovs.Network{}
+	networkRequest := &Network{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(networkRequest)
 	if err != nil {
@@ -234,7 +231,7 @@ func createNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
 
-	newNetwork, err := ovs.CreateNetwork(networkRequest.ID, cidr)
+	newNetwork, err := CreateNetwork(networkRequest.ID, cidr)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}
@@ -249,7 +246,7 @@ func deleteNetwork(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError 
 	vars := mux.Vars(r)
 	networkID := vars["id"]
 
-	err := ovs.DeleteNetwork(networkID)
+	err := DeleteNetwork(networkID)
 	if err != nil {
 		return &apiError{http.StatusInternalServerError, err.Error()}
 	}

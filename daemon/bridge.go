@@ -1,4 +1,4 @@
-package ovs
+package daemon
 
 import (
 	"crypto/rand"
@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,7 +62,7 @@ func init() {
 		log.Error("Error connecting OVS ", err)
 	}
 	ContextCache = make(map[string]string)
-	populateContexCache()
+	populateContextCache()
 }
 
 func GetAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
@@ -179,6 +180,40 @@ type OvsConnection struct {
 	Gateway string `json:"gateway"`
 }
 
+const (
+	ConnectionAdd    = iota
+	ConnectionUpdate = iota
+	ConnectionDelete = iota
+)
+
+type ConnectionContext struct {
+	Action     int
+	Connection *Connection
+	Result     chan *Connection
+}
+
+func RunConnectionHandler(d *Daemon) {
+	for {
+		c := <-d.cC
+
+		switch c.Action {
+		case ConnectionAdd:
+			pid, _ := strconv.Atoi(c.Connection.ContainerPID)
+			connDetails, _ := AddConnection(pid, c.Connection.Network)
+			c.Connection.OvsPortID = connDetails.Name
+			c.Connection.ConnectionDetails = connDetails
+			d.Connections[c.Connection.ContainerID] = c.Connection
+			// ToDo: We should deprecate this when we have a proper CLI
+			c.Result <- c.Connection
+		case ConnectionUpdate:
+			// noop
+		case ConnectionDelete:
+			DeleteConnection(c.Connection.ConnectionDetails)
+			delete(d.Connections, c.Connection.ContainerID)
+		}
+	}
+}
+
 func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, err error) {
 	var (
 		bridge = OvsBridge.Name
@@ -258,7 +293,7 @@ func UpdateConnectionContext(ovsPort string, key string, context string) error {
 	return UpdatePortContext(ovs, ovsPort, key, context)
 }
 
-func populateContexCache() {
+func populateContextCache() {
 	if ovs == nil {
 		return
 	}

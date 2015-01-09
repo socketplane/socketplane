@@ -6,7 +6,6 @@ import (
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/bonjour"
 	"github.com/socketplane/socketplane/datastore"
-	"github.com/socketplane/socketplane/ovs"
 )
 
 const DOCKER_CLUSTER_SERVICE = "_docker._cluster"
@@ -30,11 +29,11 @@ type notify struct{}
 func (n notify) NewMember(addr net.IP) {
 	log.Info("New Member Added : ", addr)
 	datastore.Join(addr.String())
-	ovs.AddPeer(addr.String())
+	AddPeer(addr.String())
 }
 func (n notify) RemoveMember(addr net.IP) {
 	log.Info("Member Left : ", addr)
-	ovs.DeletePeer(addr.String())
+	DeletePeer(addr.String())
 }
 func InterfaceToBind() *net.Interface {
 	return bonjour.InterfaceToBind()
