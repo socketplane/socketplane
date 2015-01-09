@@ -33,12 +33,10 @@ func (d *Daemon) Run(ctx *cli.Context) {
 	}
 	bootstrapNode := ctx.Bool("bootstrap")
 	serialChan := make(chan bool)
-	bindChan = make(chan string)
 
-	var bindInterface string
 	go ServeAPI(d)
-
 	go func() {
+		var bindInterface string
 		if ctx.String("iface") != "auto" {
 			bindInterface = ctx.String("iface")
 		} else {
@@ -52,32 +50,35 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		} else {
 			log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
 		}
+		datastore.Init(bindInterface, bootstrapNode)
 		Bonjour(bindInterface)
-		if clusterListener == "" {
-			bindChan <- bindInterface
+		if !bootstrapNode {
+			serialChan <- true
 		}
 	}()
 
-	go func() {
-		for {
-			bindInterface = <-bindChan
-			if bindInterface == clusterListener {
-				continue
+	/*
+		TODO : Enable this while addressing #69
+		go func() {
+			for {
+				bindInterface = <-bindChan
+				if bindInterface == clusterListener {
+					continue
+				}
+				once := true
+				if clusterListener != "" {
+					once = false
+					datastore.Leave()
+					time.Sleep(time.Second * 5)
+				}
+				clusterListener = bindInterface
+				datastore.Init(clusterListener, bootstrapNode)
+				if !bootstrapNode && once {
+					serialChan <- true
+				}
 			}
-			once := true
-			if clusterListener != "" {
-				once = false
-				datastore.Leave()
-				time.Sleep(time.Second * 5)
-			}
-			clusterListener = bindInterface
-			datastore.Init(clusterListener, bootstrapNode)
-			if !bootstrapNode && once {
-				serialChan <- true
-			}
-		}
-	}()
-
+		}()
+	*/
 	go func() {
 		if !bootstrapNode {
 			log.Printf("Non-Bootstrap node waiting on peer discovery")
@@ -118,7 +119,8 @@ func ConfigureClusterListenerPort(listen string) error {
 	if iface.Flags&net.FlagUp == 0 {
 		return errors.New("Interface is down")
 	}
-	bindChan <- listen
+	// TODO : enable this while addressing #69
+	// bindChan <- listen
 	return nil
 }
 
