@@ -1,6 +1,6 @@
 #SocketPlane
 
-[![Circle CI](https://circleci.com/gh/socketplane/socketplane/tree/master.svg?style=svg)](https://circleci.com/gh/socketplane/socketplane/tree/master)] [![Coverage Status](https://img.shields.io/coveralls/socketplane/socketplane.svg)](https://coveralls.io/r/socketplane/socketplane) 
+[![Circle CI](https://circleci.com/gh/socketplane/socketplane/tree/master.svg?style=svg)](https://circleci.com/gh/socketplane/socketplane/tree/master) [![Coverage Status](https://img.shields.io/coveralls/socketplane/socketplane.svg)](https://coveralls.io/r/socketplane/socketplane) 
 
 Developers don't want to care about VLANs, VXLANs, Tunnels or TEPs. People responsible for managing the infra expect it to be performant and reliable. SocketPlane provides a networking abstraction at the socket-layer in order to solve the problems of the network in a manageable fashion.
 
