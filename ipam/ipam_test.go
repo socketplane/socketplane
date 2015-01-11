@@ -9,10 +9,6 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	err := datastore.Init("", true)
-	if err != nil {
-		t.Log("Error starting Consul . Not failing ", err)
-	}
 }
 
 func TestIpRelease(t *testing.T) {
@@ -93,5 +89,4 @@ func TestCleanup(t *testing.T) {
 	ecc.Delete(dataStore, "192.167.1.0/24")
 	ecc.Delete(dataStore, "192.168.0.0/16")
 	ecc.Delete(dataStore, "192.169.32.0/20")
-	datastore.Leave()
 }
