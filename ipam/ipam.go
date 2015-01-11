@@ -1,11 +1,9 @@
 package ipam
 
 import (
-	"errors"
 	"math"
 	"net"
 
-	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/ecc"
 )
 
@@ -140,32 +138,4 @@ func testAndSetBit(a []byte) uint {
 		}
 	}
 	return i
-}
-
-// Lame implementation. Deprecate favoring Request function
-func GetAnAddress(subnet string) (string, error) {
-	addrArray, _, ok := ecc.Get(dataStore, subnet)
-	currVal := make([]byte, len(addrArray))
-	copy(currVal, addrArray)
-	if !ok {
-		var err error
-		address, _, err := net.ParseCIDR(subnet)
-		address = address.To4()
-		if err != nil || address == nil {
-			log.Debugf("%v is not an IPv4 address\n", address)
-			return "", errors.New(subnet + "is not an IPv4 address")
-		}
-		address[3] = 1
-		addrArray = []byte(address)
-	}
-	addrArray[3] += 1
-
-	eccerr := ecc.Put(dataStore, subnet, addrArray, currVal)
-	if eccerr == ecc.OUTDATED {
-		return GetAnAddress(subnet)
-	} else if eccerr != ecc.OK {
-		return "", errors.New("Unable to get ip-address ")
-	}
-	addrArray[3] -= 1
-	return net.IP(addrArray).String(), nil
 }
