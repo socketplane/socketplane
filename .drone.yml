@@ -1,0 +1,22 @@
+image: go1.3
+git:
+  path: github.com/socketplane/socketplane
+env:
+  - GOROOT=/usr/local/go
+  - PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+script:
+  - go get github.com/mattn/goveralls
+  - make test-all
+  - sh tools/combine-coverage.sh
+  - goveralls -service drone.io -coverprofile=coverage.out -repotoken {{coveralls_token}}
+services:
+  - davetucker/drone-ovs
+notify:
+   slack:
+     username: drone
+     token: {{slack_token}}
+     team: {{slack_team}}
+     channel: {{slack_channel}}
+     on_started: false
+     on_success: true
+     on_failure: true
