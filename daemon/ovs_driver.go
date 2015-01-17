@@ -190,6 +190,31 @@ func portUuidForName(portName string) string {
 	return ""
 }
 
+func portExists(ovs *libovsdb.OvsdbClient, portName string) (bool, error) {
+	condition := libovsdb.NewCondition("name", "==", portName)
+	selectOp := libovsdb.Operation{
+		Op:    "select",
+		Table: "Port",
+		Where: []interface{}{condition},
+	}
+	operations := []libovsdb.Operation{selectOp}
+	reply, _ := ovs.Transact("Open_vSwitch", operations...)
+
+	if len(reply) < len(operations) {
+		return false, errors.New("Number of Replies should be atleast equal to number of Operations")
+	}
+
+	if reply[0].Error != "" {
+		errMsg := fmt.Sprintf("Transaction Failed due to an error: %v", reply[0].Error)
+		return false, errors.New(errMsg)
+	}
+
+	if len(reply[0].Rows) == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func deletePort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string) {
 	condition := libovsdb.NewCondition("name", "==", portName)
 	deleteOp := libovsdb.Operation{

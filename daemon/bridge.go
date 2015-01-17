@@ -78,13 +78,17 @@ func GetAvailableGwAddress(bridgeIP string) (gwaddr string, err error) {
 			if err != nil {
 				return "", err
 			}
-			if err = CheckRouteOverlaps(dockerNetwork); err == nil {
-				gwaddr = addr
-				return gwaddr, nil
+			if err = CheckRouteOverlaps(dockerNetwork); err != nil {
+				continue
 			}
+			gwaddr = addr
+			break
 		}
 	}
-	return "", errors.New("No available subnets")
+	if gwaddr == "" {
+		return "", errors.New("No available gateway addresses")
+	}
+	return gwaddr, nil
 }
 
 func GetAvailableSubnet() (subnet *net.IPNet, err error) {
@@ -102,52 +106,30 @@ func GetAvailableSubnet() (subnet *net.IPNet, err error) {
 }
 
 func CreateBridge() error {
-	//ifaceAddr, err := getAvailableGwAddress(bridgeIP)
-	//if err != nil {
-	//	return fmt.Errorf("Could not find a free IP address range for '%s'", OvsBridge.Name)
-	//}
-
-	iface, err := net.InterfaceByName(OvsBridge.Name)
-	if iface == nil && err != nil {
+	if ovs == nil {
+		return errors.New("OVS not connected")
+	}
+	// If the bridge has been created, a port with the same name should exist
+	exists, err := portExists(ovs, OvsBridge.Name)
+	if err != nil {
+		return err
+	}
+	if !exists {
 		if err := createBridgeIface(OvsBridge.Name); err != nil {
 			return err
 		}
-		iface, err = net.InterfaceByName(OvsBridge.Name)
+		exists, err = portExists(ovs, OvsBridge.Name)
 		if err != nil {
 			return err
+		}
+		if !exists {
+			return errors.New("Error creating Bridge")
 		}
 	}
-	/*
-		else {
-			addr, err := GetIfaceAddr(OvsBridge.Name)
-			if err != nil {
-				return err
-			}
-			ifaceAddr = addr.String()
-		}
-
-		ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
-		if err != nil {
-			return err
-		}
-
-		//OvsBridge.IP = ipAddr
-		//OvsBridge.Subnet = ipNet
-
-		if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
-			return fmt.Errorf("Unable to add private network: %s", err)
-		}
-		if err := netlink.NetworkLinkUp(iface); err != nil {
-			return fmt.Errorf("Unable to start network bridge: %s", err)
-		}
-	*/
 	return nil
 }
 
 func createBridgeIface(name string) error {
-	if ovs == nil {
-		return errors.New("OVS not connected")
-	}
 	// TODO : Error handling for CreateOVSBridge.
 	CreateOVSBridge(ovs, name)
 	// TODO : Lame. Remove the sleep. This is required now to keep netlink happy
