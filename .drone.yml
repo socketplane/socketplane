@@ -1,21 +1,19 @@
-image: go1.3
+image: davetucker/golang-ci:1.3
 git:
-  path: github.com/socketplane/socketplane
-env:
-  - GOROOT=/usr/local/go
-  - PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+  path: github.com/socketplane/socketplane 
 script:
+  - go get code.google.com/p/go.tools/cmd/cover
   - go get github.com/mattn/goveralls
-  - make test-all
+  - sh tools/run-tests.sh 
   - sh tools/combine-coverage.sh
-  - goveralls -service drone.io -coverprofile=coverage.out -repotoken $$coveralls_token
+  - sh tools/publish-coverage.sh
 services:
   - davetucker/drone-ovs
+docker:
+  - net: host
 notify:
-  - slack:
-      webhook_url: $$slack_url
-      channel: $$slack_channel
-      username: drone
-      on_started: false
-      on_success: true
-      on_failure: true
+  slack:
+    webhook_url: '$$slack_url'
+    on_started: false
+    on_success: true
+    on_failure: true
