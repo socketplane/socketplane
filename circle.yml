@@ -25,7 +25,7 @@ test:
   override:
     - make build:
         pwd: ../.go_workspace/src/${REPO_PATH}
-    - make test-all:
+    - make test:
         pwd: ../.go_workspace/src/${REPO_PATH}
   post:
     - fig stop:
