@@ -1,17 +1,21 @@
 package agent
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/tlsutil"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/mitchellh/mapstructure"
 )
 
@@ -23,38 +27,137 @@ type HTTPServer struct {
 	listener net.Listener
 	logger   *log.Logger
 	uiDir    string
+	addr     string
 }
 
-// NewHTTPServer starts a new HTTP server to provide an interface to
+// NewHTTPServers starts new HTTP servers to provide an interface to
 // the agent.
-func NewHTTPServer(agent *Agent, uiDir string, enableDebug bool, logOutput io.Writer, bind string) (*HTTPServer, error) {
-	// Create the mux
-	mux := http.NewServeMux()
+func NewHTTPServers(agent *Agent, config *Config, logOutput io.Writer) ([]*HTTPServer, error) {
+	var tlsConfig *tls.Config
+	var list net.Listener
+	var httpAddr net.Addr
+	var err error
+	var servers []*HTTPServer
 
-	// Create listener
-	list, err := net.Listen("tcp", bind)
+	if config.Ports.HTTPS > 0 {
+		httpAddr, err = config.ClientListener(config.Addresses.HTTPS, config.Ports.HTTPS)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConf := &tlsutil.Config{
+			VerifyIncoming: config.VerifyIncoming,
+			VerifyOutgoing: config.VerifyOutgoing,
+			CAFile:         config.CAFile,
+			CertFile:       config.CertFile,
+			KeyFile:        config.KeyFile,
+			NodeName:       config.NodeName,
+			ServerName:     config.ServerName}
+
+		tlsConfig, err = tlsConf.IncomingTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		ln, err := net.Listen(httpAddr.Network(), httpAddr.String())
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get Listen on %s: %v", httpAddr.String(), err)
+		}
+
+		if _, ok := unixSocketAddr(config.Addresses.HTTPS); ok {
+			list = tls.NewListener(ln, tlsConfig)
+		} else {
+			list = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
+		}
+
+		// Create the mux
+		mux := http.NewServeMux()
+
+		// Create the server
+		srv := &HTTPServer{
+			agent:    agent,
+			mux:      mux,
+			listener: list,
+			logger:   log.New(logOutput, "", log.LstdFlags),
+			uiDir:    config.UiDir,
+			addr:     httpAddr.String(),
+		}
+		srv.registerHandlers(config.EnableDebug)
+
+		// Start the server
+		go http.Serve(list, mux)
+		servers = append(servers, srv)
+	}
+
+	if config.Ports.HTTP > 0 {
+		httpAddr, err = config.ClientListener(config.Addresses.HTTP, config.Ports.HTTP)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get ClientListener address:port: %v", err)
+		}
+
+		// Error if we are trying to bind a domain socket to an existing path
+		if path, ok := unixSocketAddr(config.Addresses.HTTP); ok {
+			if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+				return nil, fmt.Errorf(errSocketFileExists, path)
+			}
+		}
+
+		ln, err := net.Listen(httpAddr.Network(), httpAddr.String())
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get Listen on %s: %v", httpAddr.String(), err)
+		}
+
+		if _, ok := unixSocketAddr(config.Addresses.HTTP); ok {
+			list = ln
+		} else {
+			list = tcpKeepAliveListener{ln.(*net.TCPListener)}
+		}
+
+		// Create the mux
+		mux := http.NewServeMux()
+
+		// Create the server
+		srv := &HTTPServer{
+			agent:    agent,
+			mux:      mux,
+			listener: list,
+			logger:   log.New(logOutput, "", log.LstdFlags),
+			uiDir:    config.UiDir,
+			addr:     httpAddr.String(),
+		}
+		srv.registerHandlers(config.EnableDebug)
+
+		// Start the server
+		go http.Serve(list, mux)
+		servers = append(servers, srv)
+	}
+
+	return servers, nil
+}
+
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by NewHttpServer so
+// dead TCP connections eventually go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
 	if err != nil {
-		return nil, err
+		return
 	}
-
-	// Create the server
-	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: list,
-		logger:   log.New(logOutput, "", log.LstdFlags),
-		uiDir:    uiDir,
-	}
-	srv.registerHandlers(enableDebug)
-
-	// Start the server
-	go http.Serve(list, mux)
-	return srv, nil
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(30 * time.Second)
+	return tc, nil
 }
 
 // Shutdown is used to shutdown the HTTP server
 func (s *HTTPServer) Shutdown() {
-	s.listener.Close()
+	if s != nil {
+		s.logger.Printf("[DEBUG] http: Shutting down http server(%v)", s.addr)
+		s.listener.Close()
+	}
 }
 
 // registerHandlers is used to attach our handlers to the mux
@@ -78,6 +181,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/health/service/", s.wrap(s.HealthServiceNodes))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelf))
+	s.mux.HandleFunc("/v1/agent/self/maintenance", s.wrap(s.AgentNodeMaintenance))
 	s.mux.HandleFunc("/v1/agent/services", s.wrap(s.AgentServices))
 	s.mux.HandleFunc("/v1/agent/checks", s.wrap(s.AgentChecks))
 	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembers))
@@ -92,6 +196,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/agent/service/register", s.wrap(s.AgentRegisterService))
 	s.mux.HandleFunc("/v1/agent/service/deregister/", s.wrap(s.AgentDeregisterService))
+	s.mux.HandleFunc("/v1/agent/service/maintenance/", s.wrap(s.AgentServiceMaintenance))
 
 	s.mux.HandleFunc("/v1/event/fire/", s.wrap(s.EventFire))
 	s.mux.HandleFunc("/v1/event/list", s.wrap(s.EventList))
@@ -100,6 +205,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/session/create", s.wrap(s.SessionCreate))
 	s.mux.HandleFunc("/v1/session/destroy/", s.wrap(s.SessionDestroy))
+	s.mux.HandleFunc("/v1/session/renew/", s.wrap(s.SessionRenew))
 	s.mux.HandleFunc("/v1/session/info/", s.wrap(s.SessionGet))
 	s.mux.HandleFunc("/v1/session/node/", s.wrap(s.SessionsForNode))
 	s.mux.HandleFunc("/v1/session/list", s.wrap(s.SessionList))
@@ -142,6 +248,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
+
 		// Invoke the handler
 		start := time.Now()
 		defer func() {
@@ -164,7 +272,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		}
 
 		prettyPrint := false
-		if req.URL.Query().Get("pretty") != "" {
+		if _, ok := req.URL.Query()["pretty"]; ok {
 			prettyPrint = true
 		}
 		// Write out the JSON object
@@ -245,6 +353,13 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
+}
+
+// setHeaders is used to set canonical response header fields
+func setHeaders(resp http.ResponseWriter, headers map[string]string) {
+	for field, value := range headers {
+		resp.Header().Set(http.CanonicalHeaderKey(field), value)
+	}
 }
 
 // parseWait is used to parse the ?wait and ?index query params

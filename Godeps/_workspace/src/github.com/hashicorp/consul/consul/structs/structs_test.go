@@ -12,6 +12,7 @@ func TestEncodeDecode(t *testing.T) {
 		Address:    "baz",
 		Service: &NodeService{
 			Service: "test",
+			Address: "127.0.0.2",
 		},
 	}
 	buf, err := Encode(RegisterRequestType, arg)
@@ -31,4 +32,24 @@ func TestEncodeDecode(t *testing.T) {
 	if !reflect.DeepEqual(arg, &out) {
 		t.Fatalf("bad: %#v %#v", arg, out)
 	}
+}
+
+func TestStructs_Implements(t *testing.T) {
+	var (
+		_ RPCInfo          = &RegisterRequest{}
+		_ RPCInfo          = &DeregisterRequest{}
+		_ RPCInfo          = &DCSpecificRequest{}
+		_ RPCInfo          = &ServiceSpecificRequest{}
+		_ RPCInfo          = &NodeSpecificRequest{}
+		_ RPCInfo          = &ChecksInStateRequest{}
+		_ RPCInfo          = &KVSRequest{}
+		_ RPCInfo          = &KeyRequest{}
+		_ RPCInfo          = &KeyListRequest{}
+		_ RPCInfo          = &SessionRequest{}
+		_ RPCInfo          = &SessionSpecificRequest{}
+		_ RPCInfo          = &EventFireRequest{}
+		_ RPCInfo          = &ACLPolicyRequest{}
+		_ RPCInfo          = &KeyringRequest{}
+		_ CompoundResponse = &KeyringResponses{}
+	)
 }

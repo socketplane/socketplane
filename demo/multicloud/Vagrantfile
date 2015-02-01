@@ -1,0 +1,78 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+$install = <<SCRIPT
+echo ====> Updating Packages
+export DEBIAN_FRONTEND=noninteractive
+# -qq is pointless, it doesn't work :S
+apt-get update > /dev/null
+echo ====> Installing Packages
+apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch unzip
+ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
+cd /usr/bin
+wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
+unzip *.zip
+rm *.zip
+cd /vagrant && docker build -q -t socketplane/socketplane . > /dev/null
+echo ====> Installing SocketPlane
+socketplane install unattended
+SCRIPT
+
+$route1 = <<SCRIPT
+ip route add 172.31.254.0/24 via 10.31.254.1
+SCRIPT
+
+$route2= <<SCRIPT
+ip route add 10.31.254.0/24 via 172.31.254.1
+SCRIPT
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  
+  config.vm.define "cloud1" do |cloud1|
+    cloud1.vm.box = "socketplane/ubuntu-14.10"
+    cloud1.vm.hostname = "cloud1"
+    cloud1.vm.synced_folder "../../", "/vagrant", :rsync_excludes => ['.git/']
+    cloud1.vm.provision :shell, inline: "echo 'export BOOTSTRAP=true' >> ~/.profile"
+    cloud1.vm.provider :virtualbox do |vb, override|
+      override.vm.network :private_network, ip: "10.31.254.10"
+      override.vm.provision :shell, inline: $route1
+    end
+    cloud1.vm.provider :aws do |aws, override|
+      aws.access_key_id = "#{ENV["AWS_ACCESS_KEY"]}"
+      aws.secret_access_key = "#{ENV["AWS_ACCESS_SECRET"]}"
+      aws.keypair_name = "#{ENV["AWS_KEYPAIR_NAME"]}"
+      aws.region = "us-west-2"
+      aws.ami = "ami-3d50120d"
+      aws.instance_type = "t2.micro"
+      override.vm.box = "dummy"
+      override.vm.synced_folder '../../', '/vagrant', :rsync_excludes => ['.git/']
+      override.ssh.username = "ubuntu"
+      override.ssh.private_key_path = "#{ENV["AWS_PRIVATE_KEY"]}"
+    end
+    #ToDo: This should use get.socketplane.io
+    cloud1.vm.provision :shell, inline: $install
+  end
+  config.vm.define "cloud2" do |cloud2|
+    cloud2.vm.box = "socketplane/ubuntu-14.10"
+    cloud2.vm.hostname = "cloud2"
+    cloud2.vm.synced_folder "../../", "/vagrant"
+    cloud2.vm.provision :shell, inline: "echo 'export BOOTSTRAP=false' >> ~/.profile"
+    cloud2.vm.provider :virtualbox do |vbi, override|
+      override.vm.network :private_network, ip: "172.31.254.10"
+      override.vm.provision :shell, inline: $route2
+    end
+    cloud2.vm.provider :rackspace do |rs, override|
+      rs.username = "#{ENV['RAX_USERNAME']}"
+      rs.api_key  = "#{ENV['RAX_API_KEY']}"
+      rs.flavor   = "general1-1"
+      rs.image    = "753a7703-4960-488b-aab4-a3cdd4b276dc"
+      rs.rackspace_region = :lon
+      rs.key_name = "#{ENV['RAX_KEYPAIR_NAME']}"
+      override.vm.box = "dummy"
+    end
+    #ToDo: This should use get.socketplane.io
+    cloud2.vm.provision :shell, inline: $install
+  end
+end

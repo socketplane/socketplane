@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/consul/testutil"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/acl"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
-	"github.com/hashicorp/consul/testutil"
 )
 
 func TestACL_Disabled(t *testing.T) {

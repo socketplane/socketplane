@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
@@ -310,23 +310,24 @@ func TestLeader_LeftServer(t *testing.T) {
 		})
 	}
 
-	// Kill any server
-	servers[0].Shutdown()
-	time.Sleep(100 * time.Millisecond)
+	testutil.WaitForResult(func() (bool, error) {
+		// Kill any server
+		servers[0].Shutdown()
 
-	// Force remove the non-leader (transition to left state)
-	if err := servers[1].RemoveFailedNode(servers[0].config.NodeName); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+		// Force remove the non-leader (transition to left state)
+		if err := servers[1].RemoveFailedNode(servers[0].config.NodeName); err != nil {
+			t.Fatalf("err: %v", err)
+		}
 
-	for _, s := range servers[1:] {
-		testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers[1:] {
 			peers, _ := s.raftPeers.Peers()
 			return len(peers) == 2, errors.New(fmt.Sprintf("%v", peers))
-		}, func(err error) {
-			t.Fatalf("should have 2 peers: %v", err)
-		})
-	}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
@@ -369,6 +370,9 @@ func TestLeader_LeftLeader(t *testing.T) {
 			leader = s
 			break
 		}
+	}
+	if leader == nil {
+		t.Fatalf("Should have a leader")
 	}
 	leader.Leave()
 	leader.Shutdown()
@@ -432,4 +436,128 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 			t.Fatalf("should only have 1 raft peer!")
 		}
 	}
+}
+
+func TestLeader_TombstoneGC_Reset(t *testing.T) {
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+
+	dir2, s2 := testServerDCBootstrap(t, "dc1", false)
+	defer os.RemoveAll(dir2)
+	defer s2.Shutdown()
+
+	dir3, s3 := testServerDCBootstrap(t, "dc1", false)
+	defer os.RemoveAll(dir3)
+	defer s3.Shutdown()
+	servers := []*Server{s1, s2, s3}
+
+	// Try to join
+	addr := fmt.Sprintf("127.0.0.1:%d",
+		s1.config.SerfLANConfig.MemberlistConfig.BindPort)
+	if _, err := s2.JoinLAN([]string{addr}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if _, err := s3.JoinLAN([]string{addr}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.raftPeers.Peers()
+			return len(peers) == 3, nil
+		}, func(err error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	var leader *Server
+	for _, s := range servers {
+		if s.IsLeader() {
+			leader = s
+			break
+		}
+	}
+	if leader == nil {
+		t.Fatalf("Should have a leader")
+	}
+
+	// Check that the leader has a pending GC expiration
+	if !leader.tombstoneGC.PendingExpiration() {
+		t.Fatalf("should have pending expiration")
+	}
+
+	// Kill the leader
+	leader.Shutdown()
+	time.Sleep(100 * time.Millisecond)
+
+	// Wait for a new leader
+	leader = nil
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			if s.IsLeader() {
+				leader = s
+				return true, nil
+			}
+		}
+		return false, nil
+	}, func(err error) {
+		t.Fatalf("should have leader")
+	})
+
+	// Check that the new leader has a pending GC expiration
+	testutil.WaitForResult(func() (bool, error) {
+		return leader.tombstoneGC.PendingExpiration(), nil
+	}, func(err error) {
+		t.Fatalf("should have pending expiration")
+	})
+}
+
+func TestLeader_ReapTombstones(t *testing.T) {
+	dir1, s1 := testServerWithConfig(t, func(c *Config) {
+		c.TombstoneTTL = 50 * time.Millisecond
+		c.TombstoneTTLGranularity = 10 * time.Millisecond
+	})
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+
+	client := rpcClient(t, s1)
+	testutil.WaitForLeader(t, client.Call, "dc1")
+
+	// Create a KV entry
+	arg := structs.KVSRequest{
+		Datacenter: "dc1",
+		Op:         structs.KVSSet,
+		DirEnt: structs.DirEntry{
+			Key:   "test",
+			Value: []byte("test"),
+		},
+	}
+	var out bool
+	if err := client.Call("KVS.Apply", &arg, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Delete the KV entry (tombstoned)
+	arg.Op = structs.KVSDelete
+	if err := client.Call("KVS.Apply", &arg, &out); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure we have a tombstone
+	_, res, err := s1.fsm.State().tombstoneTable.Get("id")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(res) == 0 {
+		t.Fatalf("missing tombstones")
+	}
+
+	// Check that the new leader has a pending GC expiration
+	testutil.WaitForResult(func() (bool, error) {
+		_, res, err := s1.fsm.State().tombstoneTable.Get("id")
+		return len(res) == 0, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }

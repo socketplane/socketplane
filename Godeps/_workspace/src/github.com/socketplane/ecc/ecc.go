@@ -15,7 +15,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/consul-api"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/api"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/command"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/watch"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/mitchellh/cli"
@@ -30,6 +30,7 @@ import (
 var started bool
 var OfflineSupport bool = true
 var listener eccListener
+var errCh chan int
 
 func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string) error {
 	watches = make(map[WatchType]watchData)
@@ -51,7 +52,7 @@ func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string
 			}
 		}
 	}
-	errCh := make(chan int)
+	errCh = make(chan int)
 	go RegisterForNodeUpdates(listener)
 	go startConsul(serverMode, bootstrap, bindAddress, dataDir, errCh)
 
@@ -77,13 +78,13 @@ func startConsul(serverMode bool, bootstrap bool, bindAddress string, dataDir st
 	if bindAddress != "" {
 		args = append(args, "-bind")
 		args = append(args, bindAddress)
+		args = append(args, "-advertise")
+		args = append(args, bindAddress)
 	}
 
 	ret := Execute(args...)
 
-	if ret != 0 {
-		eCh <- ret
-	}
+	eCh <- ret
 }
 
 func HasStarted() bool {
@@ -106,7 +107,10 @@ func Leave() error {
 		log.Println("Error Leaving Consul membership")
 		return errors.New("Error leaving Consul cluster")
 	}
-	time.Sleep(time.Second * 3)
+	code := <-errCh
+	close(errCh)
+	log.Println("Consul Agent Exited with Status ", code)
+	time.Sleep(3 * time.Second)
 	return nil
 }
 
@@ -465,16 +469,16 @@ func register(params map[string]interface{}, handler watch.HandlerFunc) {
 	}
 }
 
-var nodeCache []*consulapi.Node
+var nodeCache []*api.Node
 
-func compare(X, Y []*consulapi.Node) []*consulapi.Node {
+func compare(X, Y []*api.Node) []*api.Node {
 	m := make(map[string]bool)
 
 	for _, y := range Y {
 		m[y.Address] = true
 	}
 
-	var ret []*consulapi.Node
+	var ret []*api.Node
 	for _, x := range X {
 		if m[x.Address] {
 			continue
@@ -485,7 +489,7 @@ func compare(X, Y []*consulapi.Node) []*consulapi.Node {
 	return ret
 }
 
-func updateNodeListeners(clusterNodes []*consulapi.Node) {
+func updateNodeListeners(clusterNodes []*api.Node) {
 	toDelete := compare(nodeCache, clusterNodes)
 	toAdd := compare(clusterNodes, nodeCache)
 	nodeCache = clusterNodes
@@ -513,7 +517,7 @@ func RegisterForNodeUpdates(listener Listener) {
 		params := make(map[string]interface{})
 		params["type"] = "nodes"
 		handler := func(idx uint64, data interface{}) {
-			updateNodeListeners(data.([]*consulapi.Node))
+			updateNodeListeners(data.([]*api.Node))
 		}
 		register(params, handler)
 	}
@@ -525,12 +529,12 @@ func updateKeyListeners(idx uint64, key string, data interface{}) {
 		return
 	}
 
-	var kv *consulapi.KVPair = nil
+	var kv *api.KVPair = nil
 	var val []byte = nil
 	updateType := NOTIFY_UPDATE_MODIFY
 
 	if data != nil {
-		kv = data.(*consulapi.KVPair)
+		kv = data.(*api.KVPair)
 	}
 
 	if kv == nil {

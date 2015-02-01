@@ -1,8 +1,8 @@
 package serf
 
 import (
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/testutil"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/memberlist"
 	"reflect"
 	"testing"
 )

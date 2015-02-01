@@ -3,8 +3,8 @@ package agent
 import (
 	"bytes"
 	"fmt"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -41,7 +41,7 @@ func TestUiIndex(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Verify teh response
+	// Verify the response
 	if resp.StatusCode != 200 {
 		t.Fatalf("bad: %v", resp)
 	}

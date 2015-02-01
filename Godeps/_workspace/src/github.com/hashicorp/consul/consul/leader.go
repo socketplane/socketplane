@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/go-metrics"
@@ -49,20 +50,19 @@ func (s *Server) monitorLeadership() {
 // leaderLoop runs as long as we are the leader to run various
 // maintence activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
+	// Ensure we revoke leadership on stepdown
+	defer s.revokeLeadership()
+
 	// Fire a user event indicating a new leader
 	payload := []byte(s.config.NodeName)
 	if err := s.serfLAN.UserEvent(newLeaderEvent, payload, false); err != nil {
 		s.logger.Printf("[WARN] consul: failed to broadcast new leader event: %v", err)
 	}
 
-	// Setup ACLs if we are the leader and need to
-	if err := s.initializeACL(); err != nil {
-		s.logger.Printf("[ERR] consul: ACL initialization failed: %v", err)
-	}
-
 	// Reconcile channel is only used once initial reconcile
 	// has succeeded
 	var reconcileCh chan serf.Member
+	establishedLeader := false
 
 RECONCILE:
 	// Setup a reconciliation timer
@@ -77,6 +77,16 @@ RECONCILE:
 		goto WAIT
 	}
 	metrics.MeasureSince([]string{"consul", "leader", "barrier"}, start)
+
+	// Check if we need to handle initial leadership actions
+	if !establishedLeader {
+		if err := s.establishLeadership(); err != nil {
+			s.logger.Printf("[ERR] consul: failed to establish leadership: %v",
+				err)
+			goto WAIT
+		}
+		establishedLeader = true
+	}
 
 	// Reconcile any missing data
 	if err := s.reconcile(); err != nil {
@@ -101,8 +111,61 @@ WAIT:
 			goto RECONCILE
 		case member := <-reconcileCh:
 			s.reconcileMember(member)
+		case index := <-s.tombstoneGC.ExpireCh():
+			go s.reapTombstones(index)
 		}
 	}
+}
+
+// establishLeadership is invoked once we become leader and are able
+// to invoke an initial barrier. The barrier is used to ensure any
+// previously inflight transactions have been commited and that our
+// state is up-to-date.
+func (s *Server) establishLeadership() error {
+	// Hint the tombstone expiration timer. When we freshly establish leadership
+	// we become the authoritative timer, and so we need to start the clock
+	// on any pending GC events.
+	s.tombstoneGC.SetEnabled(true)
+	lastIndex := s.raft.LastIndex()
+	s.tombstoneGC.Hint(lastIndex)
+	s.logger.Printf("[DEBUG] consul: reset tombstone GC to index %d", lastIndex)
+
+	// Setup ACLs if we are the leader and need to
+	if err := s.initializeACL(); err != nil {
+		s.logger.Printf("[ERR] consul: ACL initialization failed: %v", err)
+		return err
+	}
+
+	// Setup the session timers. This is done both when starting up or when
+	// a leader fail over happens. Since the timers are maintained by the leader
+	// node along, effectively this means all the timers are renewed at the
+	// time of failover. The TTL contract is that the session will not be expired
+	// before the TTL, so expiring it later is allowable.
+	//
+	// This MUST be done after the initial barrier to ensure the latest Sessions
+	// are available to be initialized. Otherwise initialization may use stale
+	// data.
+	if err := s.initializeSessionTimers(); err != nil {
+		s.logger.Printf("[ERR] consul: Session Timers initialization failed: %v",
+			err)
+		return err
+	}
+	return nil
+}
+
+// revokeLeadership is invoked once we step down as leader.
+// This is used to cleanup any state that may be specific to a leader.
+func (s *Server) revokeLeadership() error {
+	// Disable the tombstone GC, since it is only useful as a leader
+	s.tombstoneGC.SetEnabled(false)
+
+	// Clear the session timers on either shutdown or step down, since we
+	// are no longer responsible for session expirations.
+	if err := s.clearAllSessionTimers(); err != nil {
+		s.logger.Printf("[ERR] consul: Clearing session timers failed: %v", err)
+		return err
+	}
+	return nil
 }
 
 // initializeACL is used to setup the ACLs if we are the leader
@@ -265,6 +328,11 @@ func (s *Server) reconcileMember(member serf.Member) error {
 	if err != nil {
 		s.logger.Printf("[ERR] consul: failed to reconcile member: %v: %v",
 			member, err)
+
+		// Permission denied should not bubble up
+		if strings.Contains(err.Error(), permissionDenied) {
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -344,6 +412,7 @@ AFTER_CHECK:
 			Status:  structs.HealthPassing,
 			Output:  SerfCheckAliveOutput,
 		},
+		WriteRequest: structs.WriteRequest{Token: s.config.ACLToken},
 	}
 	var out struct{}
 	return s.endpoints.Catalog.Register(&req, &out)
@@ -379,6 +448,7 @@ func (s *Server) handleFailedMember(member serf.Member) error {
 			Status:  structs.HealthCritical,
 			Output:  SerfCheckFailedOutput,
 		},
+		WriteRequest: structs.WriteRequest{Token: s.config.ACLToken},
 	}
 	var out struct{}
 	return s.endpoints.Catalog.Register(&req, &out)
@@ -471,4 +541,25 @@ func (s *Server) removeConsulServer(m serf.Member, port int) error {
 		return err
 	}
 	return nil
+}
+
+// reapTombstones is invoked by the current leader to manage garbage
+// collection of tombstones. When a key is deleted, we trigger a tombstone
+// GC clock. Once the expiration is reached, this routine is invoked
+// to clear all tombstones before this index. This must be replicated
+// through Raft to ensure consistency. We do this outside the leader loop
+// to avoid blocking.
+func (s *Server) reapTombstones(index uint64) {
+	defer metrics.MeasureSince([]string{"consul", "leader", "reapTombstones"}, time.Now())
+	req := structs.TombstoneRequest{
+		Datacenter:   s.config.Datacenter,
+		Op:           structs.TombstoneReap,
+		ReapIndex:    index,
+		WriteRequest: structs.WriteRequest{Token: s.config.ACLToken},
+	}
+	_, err := s.raftApply(structs.TombstoneRequestType, &req)
+	if err != nil {
+		s.logger.Printf("[ERR] consul: failed to reap tombstones up to %d: %v",
+			index, err)
+	}
 }
