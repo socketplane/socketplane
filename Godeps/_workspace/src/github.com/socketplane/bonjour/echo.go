@@ -68,5 +68,7 @@ func echo(address string, ip *net.IP) (int, error) {
 		err = errors.New(errId)
 		ret = ERROR
 	}
+
+	p.Stop()
 	return ret, err
 }

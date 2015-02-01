@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.3.2",
+	"GoVersion": "go1.4.1",
 	"Packages": [
 		"./..."
 	],
@@ -171,7 +171,7 @@
 		{
 			"ImportPath": "github.com/socketplane/bonjour",
 			"Comment": "v0.1.2",
-			"Rev": "eee79f005990805cf2a16d71524282a9994b4549"
+			"Rev": "426dc183e96946f24b76c4ba866ca29ff6cbef5d"
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",

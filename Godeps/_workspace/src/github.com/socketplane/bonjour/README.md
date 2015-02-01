@@ -161,3 +161,5 @@ func main() {
     }
 }
 ```
+
+Please take a look at the example/bonjour_daemon.go
