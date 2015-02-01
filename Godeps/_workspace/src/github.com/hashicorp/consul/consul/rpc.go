@@ -3,16 +3,17 @@ package consul
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/go-metrics"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/yamux"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/inconshreveable/muxado"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/go-msgpack/codec"
 	"io"
 	"math/rand"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/go-metrics"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/go-msgpack/codec"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/yamux"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/inconshreveable/muxado"
 )
 
 type RPCType byte
@@ -149,7 +150,13 @@ func (s *Server) handleMultiplexV2(conn net.Conn) {
 func (s *Server) handleConsulConn(conn net.Conn) {
 	defer conn.Close()
 	rpcCodec := codec.GoRpc.ServerCodec(conn, msgpackHandle)
-	for !s.shutdown {
+	for {
+		select {
+		case <-s.shutdownCh:
+			return
+		default:
+		}
+
 		if err := s.rpcServer.ServeRequest(rpcCodec); err != nil {
 			if err != io.EOF && !strings.Contains(err.Error(), "closed") {
 				s.logger.Printf("[ERR] consul.rpc: RPC error: %v (%v)", err, conn)
@@ -223,6 +230,40 @@ func (s *Server) forwardDC(method, dc string, args interface{}, reply interface{
 	return s.connPool.RPC(server.Addr, server.Version, method, args, reply)
 }
 
+// globalRPC is used to forward an RPC request to one server in each datacenter.
+// This will only error for RPC-related errors. Otherwise, application-level
+// errors can be sent in the response objects.
+func (s *Server) globalRPC(method string, args interface{},
+	reply structs.CompoundResponse) error {
+
+	errorCh := make(chan error)
+	respCh := make(chan interface{})
+
+	// Make a new request into each datacenter
+	for dc, _ := range s.remoteConsuls {
+		go func(dc string) {
+			rr := reply.New()
+			if err := s.forwardDC(method, dc, args, &rr); err != nil {
+				errorCh <- err
+				return
+			}
+			respCh <- rr
+		}(dc)
+	}
+
+	replies, total := 0, len(s.remoteConsuls)
+	for replies < total {
+		select {
+		case err := <-errorCh:
+			return err
+		case rr := <-respCh:
+			reply.Add(rr)
+			replies++
+		}
+	}
+	return nil
+}
+
 // raftApply is used to encode a message, run it through raft, and return
 // the FSM response along with any errors
 func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, error) {
@@ -248,57 +289,84 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 // minimum index. This is used to block and wait for changes.
 func (s *Server) blockingRPC(b *structs.QueryOptions, m *structs.QueryMeta,
 	tables MDBTables, run func() error) error {
+	opts := blockingRPCOptions{
+		queryOpts: b,
+		queryMeta: m,
+		tables:    tables,
+		run:       run,
+	}
+	return s.blockingRPCOpt(&opts)
+}
+
+// blockingRPCOptions is used to parameterize blockingRPCOpt since
+// it takes so many options. It should be prefered over blockingRPC.
+type blockingRPCOptions struct {
+	queryOpts *structs.QueryOptions
+	queryMeta *structs.QueryMeta
+	tables    MDBTables
+	kvWatch   bool
+	kvPrefix  string
+	run       func() error
+}
+
+// blockingRPCOpt is the replacement for blockingRPC as it allows
+// for more parameterization easily. It should be prefered over blockingRPC.
+func (s *Server) blockingRPCOpt(opts *blockingRPCOptions) error {
 	var timeout <-chan time.Time
 	var notifyCh chan struct{}
 
 	// Fast path non-blocking
-	if b.MinQueryIndex == 0 {
+	if opts.queryOpts.MinQueryIndex == 0 {
 		goto RUN_QUERY
 	}
 
 	// Sanity check that we have tables to block on
-	if len(tables) == 0 {
+	if len(opts.tables) == 0 && !opts.kvWatch {
 		panic("no tables to block on")
 	}
 
 	// Restrict the max query time
-	if b.MaxQueryTime > maxQueryTime {
-		b.MaxQueryTime = maxQueryTime
+	if opts.queryOpts.MaxQueryTime > maxQueryTime {
+		opts.queryOpts.MaxQueryTime = maxQueryTime
 	}
 
 	// Ensure a time limit is set if we have an index
-	if b.MinQueryIndex > 0 && b.MaxQueryTime == 0 {
-		b.MaxQueryTime = maxQueryTime
+	if opts.queryOpts.MinQueryIndex > 0 && opts.queryOpts.MaxQueryTime == 0 {
+		opts.queryOpts.MaxQueryTime = maxQueryTime
 	}
 
 	// Setup a query timeout
-	if b.MaxQueryTime > 0 {
-		timeout = time.After(b.MaxQueryTime)
+	if opts.queryOpts.MaxQueryTime > 0 {
+		timeout = time.After(opts.queryOpts.MaxQueryTime)
 	}
 
 	// Setup a notification channel for changes
 SETUP_NOTIFY:
-	if b.MinQueryIndex > 0 {
+	if opts.queryOpts.MinQueryIndex > 0 {
 		notifyCh = make(chan struct{}, 1)
-		s.fsm.State().Watch(tables, notifyCh)
+		state := s.fsm.State()
+		state.Watch(opts.tables, notifyCh)
+		if opts.kvWatch {
+			state.WatchKV(opts.kvPrefix, notifyCh)
+		}
 	}
 
 RUN_QUERY:
 	// Update the query meta data
-	s.setQueryMeta(m)
+	s.setQueryMeta(opts.queryMeta)
 
 	// Check if query must be consistent
-	if b.RequireConsistent {
+	if opts.queryOpts.RequireConsistent {
 		if err := s.consistentRead(); err != nil {
 			return err
 		}
 	}
 
 	// Run the query function
-	err := run()
+	err := opts.run()
 
 	// Check for minimum query time
-	if err == nil && m.Index > 0 && m.Index <= b.MinQueryIndex {
+	if err == nil && opts.queryMeta.Index > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
 		select {
 		case <-notifyCh:
 			goto SETUP_NOTIFY

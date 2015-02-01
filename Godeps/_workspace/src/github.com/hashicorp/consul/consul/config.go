@@ -1,15 +1,13 @@
 package consul
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"time"
 
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/tlsutil"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/memberlist"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/raft"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
@@ -160,6 +158,29 @@ type Config struct {
 	// "allow" can be used to allow all requests. This is not recommended.
 	ACLDownPolicy string
 
+	// TombstoneTTL is used to control how long KV tombstones are retained.
+	// This provides a window of time where the X-Consul-Index is monotonic.
+	// Outside this window, the index may not be monotonic. This is a result
+	// of a few trade offs:
+	// 1) The index is defined by the data view and not globally. This is a
+	// performance optimization that prevents any write from incrementing the
+	// index for all data views.
+	// 2) Tombstones are not kept indefinitely, since otherwise storage required
+	// is also monotonic. This prevents deletes from reducing the disk space
+	// used.
+	// In theory, neither of these are intrinsic limitations, however for the
+	// purposes of building a practical system, they are reaonable trade offs.
+	//
+	// It is also possible to set this to an incredibly long time, thereby
+	// simulating infinite retention. This is not recommended however.
+	//
+	TombstoneTTL time.Duration
+
+	// TombstoneTTLGranularity is used to control how granular the timers are
+	// for the Tombstone GC. This is used to batch the GC of many keys together
+	// to reduce overhead. It is unlikely a user would ever need to tune this.
+	TombstoneTTLGranularity time.Duration
+
 	// ServerUp callback can be used to trigger a notification that
 	// a Consul server is now up and known about.
 	ServerUp func()
@@ -199,169 +220,6 @@ func (c *Config) CheckACL() error {
 	return nil
 }
 
-// AppendCA opens and parses the CA file and adds the certificates to
-// the provided CertPool.
-func (c *Config) AppendCA(pool *x509.CertPool) error {
-	if c.CAFile == "" {
-		return nil
-	}
-
-	// Read the file
-	data, err := ioutil.ReadFile(c.CAFile)
-	if err != nil {
-		return fmt.Errorf("Failed to read CA file: %v", err)
-	}
-
-	if !pool.AppendCertsFromPEM(data) {
-		return fmt.Errorf("Failed to parse any CA certificates")
-	}
-
-	return nil
-}
-
-// KeyPair is used to open and parse a certificate and key file
-func (c *Config) KeyPair() (*tls.Certificate, error) {
-	if c.CertFile == "" || c.KeyFile == "" {
-		return nil, nil
-	}
-	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to load cert/key pair: %v", err)
-	}
-	return &cert, err
-}
-
-// OutgoingTLSConfig generates a TLS configuration for outgoing
-// requests. It will return a nil config if this configuration should
-// not use TLS for outgoing connections.
-func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
-	if !c.VerifyOutgoing {
-		return nil, nil
-	}
-	// Create the tlsConfig
-	tlsConfig := &tls.Config{
-		RootCAs:            x509.NewCertPool(),
-		InsecureSkipVerify: true,
-	}
-	if c.ServerName != "" {
-		tlsConfig.ServerName = c.ServerName
-		tlsConfig.InsecureSkipVerify = false
-	}
-
-	// Ensure we have a CA if VerifyOutgoing is set
-	if c.VerifyOutgoing && c.CAFile == "" {
-		return nil, fmt.Errorf("VerifyOutgoing set, and no CA certificate provided!")
-	}
-
-	// Parse the CA cert if any
-	err := c.AppendCA(tlsConfig.RootCAs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add cert/key
-	cert, err := c.KeyPair()
-	if err != nil {
-		return nil, err
-	} else if cert != nil {
-		tlsConfig.Certificates = []tls.Certificate{*cert}
-	}
-
-	return tlsConfig, nil
-}
-
-// Wrap a net.Conn into a client tls connection, performing any
-// additional verification as needed.
-//
-// As of go 1.3, crypto/tls only supports either doing no certificate
-// verification, or doing full verification including of the peer's
-// DNS name. For consul, we want to validate that the certificate is
-// signed by a known CA, but because consul doesn't use DNS names for
-// node names, we don't verify the certificate DNS names. Since go 1.3
-// no longer supports this mode of operation, we have to do it
-// manually.
-func wrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
-	var err error
-	var tlsConn *tls.Conn
-
-	tlsConn = tls.Client(conn, tlsConfig)
-
-	// If crypto/tls is doing verification, there's no need to do
-	// our own.
-	if tlsConfig.InsecureSkipVerify == false {
-		return tlsConn, nil
-	}
-
-	if err = tlsConn.Handshake(); err != nil {
-		tlsConn.Close()
-		return nil, err
-	}
-
-	// The following is lightly-modified from the doFullHandshake
-	// method in crypto/tls's handshake_client.go.
-	opts := x509.VerifyOptions{
-		Roots:         tlsConfig.RootCAs,
-		CurrentTime:   time.Now(),
-		DNSName:       "",
-		Intermediates: x509.NewCertPool(),
-	}
-
-	certs := tlsConn.ConnectionState().PeerCertificates
-	for i, cert := range certs {
-		if i == 0 {
-			continue
-		}
-		opts.Intermediates.AddCert(cert)
-	}
-
-	_, err = certs[0].Verify(opts)
-	if err != nil {
-		tlsConn.Close()
-		return nil, err
-	}
-
-	return tlsConn, err
-}
-
-// IncomingTLSConfig generates a TLS configuration for incoming requests
-func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
-	// Create the tlsConfig
-	tlsConfig := &tls.Config{
-		ServerName: c.ServerName,
-		ClientCAs:  x509.NewCertPool(),
-		ClientAuth: tls.NoClientCert,
-	}
-	if tlsConfig.ServerName == "" {
-		tlsConfig.ServerName = c.NodeName
-	}
-
-	// Parse the CA cert if any
-	err := c.AppendCA(tlsConfig.ClientCAs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add cert/key
-	cert, err := c.KeyPair()
-	if err != nil {
-		return nil, err
-	} else if cert != nil {
-		tlsConfig.Certificates = []tls.Certificate{*cert}
-	}
-
-	// Check if we require verification
-	if c.VerifyIncoming {
-		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		if c.CAFile == "" {
-			return nil, fmt.Errorf("VerifyIncoming set, and no CA certificate provided!")
-		}
-		if cert == nil {
-			return nil, fmt.Errorf("VerifyIncoming set, and no Cert/Key pair provided!")
-		}
-	}
-	return tlsConfig, nil
-}
-
 // DefaultConfig is used to return a sane default configuration
 func DefaultConfig() *Config {
 	hostname, err := os.Hostname()
@@ -370,17 +228,19 @@ func DefaultConfig() *Config {
 	}
 
 	conf := &Config{
-		Datacenter:        DefaultDC,
-		NodeName:          hostname,
-		RPCAddr:           DefaultRPCAddr,
-		RaftConfig:        raft.DefaultConfig(),
-		SerfLANConfig:     serf.DefaultConfig(),
-		SerfWANConfig:     serf.DefaultConfig(),
-		ReconcileInterval: 60 * time.Second,
-		ProtocolVersion:   ProtocolVersionMax,
-		ACLTTL:            30 * time.Second,
-		ACLDefaultPolicy:  "allow",
-		ACLDownPolicy:     "extend-cache",
+		Datacenter:              DefaultDC,
+		NodeName:                hostname,
+		RPCAddr:                 DefaultRPCAddr,
+		RaftConfig:              raft.DefaultConfig(),
+		SerfLANConfig:           serf.DefaultConfig(),
+		SerfWANConfig:           serf.DefaultConfig(),
+		ReconcileInterval:       60 * time.Second,
+		ProtocolVersion:         ProtocolVersionMax,
+		ACLTTL:                  30 * time.Second,
+		ACLDefaultPolicy:        "allow",
+		ACLDownPolicy:           "extend-cache",
+		TombstoneTTL:            15 * time.Minute,
+		TombstoneTTLGranularity: 30 * time.Second,
 	}
 
 	// Increase our reap interval to 3 days instead of 24h.
@@ -399,4 +259,17 @@ func DefaultConfig() *Config {
 	conf.RaftConfig.ShutdownOnRemove = false
 
 	return conf
+}
+
+func (c *Config) tlsConfig() *tlsutil.Config {
+	tlsConf := &tlsutil.Config{
+		VerifyIncoming: c.VerifyIncoming,
+		VerifyOutgoing: c.VerifyOutgoing,
+		CAFile:         c.CAFile,
+		CertFile:       c.CertFile,
+		KeyFile:        c.KeyFile,
+		NodeName:       c.NodeName,
+		ServerName:     c.ServerName}
+
+	return tlsConf
 }

@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/internal/iana"
-	"golang.org/x/net/internal/icmp"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv4"
+	"golang.org/x/net/icmp"
 )
 
 func ExampleConn_markingTCP() {

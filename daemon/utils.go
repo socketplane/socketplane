@@ -146,9 +146,11 @@ func ChangeInterfaceName(old, newName string) error {
 	return netlink.NetworkChangeName(iface, newName)
 }
 
+/* ToDo: We don't use this today, is it still needed?
 func CreateVethPair(name1, name2 string) error {
-	return netlink.NetworkCreateVethPair(name1, name2)
+	return netlink.NetworkCreateVethPair(name1, name2, 0)
 }
+*/
 
 func SetInterfaceInNamespacePid(name string, nsPid int) error {
 	iface, err := net.InterfaceByName(name)
@@ -208,4 +210,7 @@ func SetMtu(name string, mtu int) error {
 		return err
 	}
 	return netlink.NetworkSetMTU(iface, mtu)
+}
+
+func GetIfaceForRoute(address string) {
 }

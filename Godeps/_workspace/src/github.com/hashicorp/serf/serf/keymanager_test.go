@@ -3,8 +3,8 @@ package serf
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/testutil"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/memberlist"
 	"testing"
 )
 

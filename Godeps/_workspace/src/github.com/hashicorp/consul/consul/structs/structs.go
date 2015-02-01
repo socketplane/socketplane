@@ -23,6 +23,7 @@ const (
 	KVSRequestType
 	SessionRequestType
 	ACLRequestType
+	TombstoneRequestType
 )
 
 const (
@@ -216,12 +217,13 @@ type Services map[string][]string
 
 // ServiceNode represents a node that is part of a service
 type ServiceNode struct {
-	Node        string
-	Address     string
-	ServiceID   string
-	ServiceName string
-	ServiceTags []string
-	ServicePort int
+	Node           string
+	Address        string
+	ServiceID      string
+	ServiceName    string
+	ServiceTags    []string
+	ServiceAddress string
+	ServicePort    int
 }
 type ServiceNodes []ServiceNode
 
@@ -230,6 +232,7 @@ type NodeService struct {
 	ID      string
 	Service string
 	Tags    []string
+	Address string
 	Port    int
 }
 type NodeServices struct {
@@ -327,6 +330,7 @@ type KVSOp string
 const (
 	KVSSet        KVSOp = "set"
 	KVSDelete           = "delete"
+	KVSDeleteCAS        = "delete-cas" // Delete with check-and-set
 	KVSDeleteTree       = "delete-tree"
 	KVSCAS              = "cas"    // Check-and-set
 	KVSLock             = "lock"   // Lock a key
@@ -378,6 +382,19 @@ type IndexedKeyList struct {
 	QueryMeta
 }
 
+type SessionBehavior string
+
+const (
+	SessionKeysRelease SessionBehavior = "release"
+	SessionKeysDelete                  = "delete"
+)
+
+const (
+	SessionTTLMin        = 10 * time.Second
+	SessionTTLMax        = 3600 * time.Second
+	SessionTTLMultiplier = 2
+)
+
 // Session is used to represent an open session in the KV store.
 // This issued to associate node checks with acquired locks.
 type Session struct {
@@ -387,6 +404,8 @@ type Session struct {
 	Node        string
 	Checks      []string
 	LockDelay   time.Duration
+	Behavior    SessionBehavior // What to do when session is invalidated
+	TTL         string
 }
 type Sessions []*Session
 
@@ -516,6 +535,24 @@ type EventFireResponse struct {
 	QueryMeta
 }
 
+type TombstoneOp string
+
+const (
+	TombstoneReap TombstoneOp = "reap"
+)
+
+// TombstoneRequest is used to trigger a reaping of the tombstones
+type TombstoneRequest struct {
+	Datacenter string
+	Op         TombstoneOp
+	ReapIndex  uint64
+	WriteRequest
+}
+
+func (r *TombstoneRequest) RequestDatacenter() string {
+	return r.Datacenter
+}
+
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var msgpackHandle = &codec.MsgpackHandle{}
 
@@ -530,4 +567,67 @@ func Encode(t MessageType, msg interface{}) ([]byte, error) {
 	buf.WriteByte(uint8(t))
 	err := codec.NewEncoder(&buf, msgpackHandle).Encode(msg)
 	return buf.Bytes(), err
+}
+
+// CompoundResponse is an interface for gathering multiple responses. It is
+// used in cross-datacenter RPC calls where more than 1 datacenter is
+// expected to reply.
+type CompoundResponse interface {
+	// Add adds a new response to the compound response
+	Add(interface{})
+
+	// New returns an empty response object which can be passed around by
+	// reference, and then passed to Add() later on.
+	New() interface{}
+}
+
+type KeyringOp string
+
+const (
+	KeyringList    KeyringOp = "list"
+	KeyringInstall           = "install"
+	KeyringUse               = "use"
+	KeyringRemove            = "remove"
+)
+
+// KeyringRequest encapsulates a request to modify an encryption keyring.
+// It can be used for install, remove, or use key type operations.
+type KeyringRequest struct {
+	Operation  KeyringOp
+	Key        string
+	Datacenter string
+	Forwarded  bool
+	QueryOptions
+}
+
+func (r *KeyringRequest) RequestDatacenter() string {
+	return r.Datacenter
+}
+
+// KeyringResponse is a unified key response and can be used for install,
+// remove, use, as well as listing key queries.
+type KeyringResponse struct {
+	WAN        bool
+	Datacenter string
+	Messages   map[string]string
+	Keys       map[string]int
+	NumNodes   int
+	Error      string
+}
+
+// KeyringResponses holds multiple responses to keyring queries. Each
+// datacenter replies independently, and KeyringResponses is used as a
+// container for the set of all responses.
+type KeyringResponses struct {
+	Responses []*KeyringResponse
+	QueryMeta
+}
+
+func (r *KeyringResponses) Add(v interface{}) {
+	val := v.(*KeyringResponses)
+	r.Responses = append(r.Responses, val.Responses...)
+}
+
+func (r *KeyringResponses) New() interface{} {
+	return new(KeyringResponses)
 }

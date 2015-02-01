@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/consul/structs"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/serf/serf"
 )
 
@@ -97,6 +97,56 @@ func TestClient_JoinLAN(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("expected consul server")
 	})
+}
+
+func TestClient_JoinLAN_Invalid(t *testing.T) {
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+
+	dir2, c1 := testClientDC(t, "other")
+	defer os.RemoveAll(dir2)
+	defer c1.Shutdown()
+
+	// Try to join
+	addr := fmt.Sprintf("127.0.0.1:%d",
+		s1.config.SerfLANConfig.MemberlistConfig.BindPort)
+	if _, err := c1.JoinLAN([]string{addr}); err == nil {
+		t.Fatalf("should error")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if len(s1.LANMembers()) != 1 {
+		t.Fatalf("should not join")
+	}
+	if len(c1.LANMembers()) != 1 {
+		t.Fatalf("should not join")
+	}
+}
+
+func TestClient_JoinWAN_Invalid(t *testing.T) {
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+
+	dir2, c1 := testClientDC(t, "dc2")
+	defer os.RemoveAll(dir2)
+	defer c1.Shutdown()
+
+	// Try to join
+	addr := fmt.Sprintf("127.0.0.1:%d",
+		s1.config.SerfWANConfig.MemberlistConfig.BindPort)
+	if _, err := c1.JoinLAN([]string{addr}); err == nil {
+		t.Fatalf("should error")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if len(s1.WANMembers()) != 1 {
+		t.Fatalf("should not join")
+	}
+	if len(c1.LANMembers()) != 1 {
+		t.Fatalf("should not join")
+	}
 }
 
 func TestClient_RPC(t *testing.T) {
@@ -267,5 +317,25 @@ func TestClientServer_UserEvent(t *testing.T) {
 
 	if !(serverFoo && serverBar && clientFoo && clientBar) {
 		t.Fatalf("missing events")
+	}
+}
+
+func TestClient_Encrypted(t *testing.T) {
+	dir1, c1 := testClient(t)
+	defer os.RemoveAll(dir1)
+	defer c1.Shutdown()
+
+	key := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	dir2, c2 := testClientWithConfig(t, func(c *Config) {
+		c.SerfLANConfig.MemberlistConfig.SecretKey = key
+	})
+	defer os.RemoveAll(dir2)
+	defer c2.Shutdown()
+
+	if c1.Encrypted() {
+		t.Fatalf("should not be encrypted")
+	}
+	if !c2.Encrypted() {
+		t.Fatalf("should be encrypted")
 	}
 }

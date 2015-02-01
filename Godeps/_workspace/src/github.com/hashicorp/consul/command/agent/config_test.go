@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -109,7 +110,7 @@ func TestDecodeConfig(t *testing.T) {
 	}
 
 	// DNS setup
-	input = `{"ports": {"dns": 8500}, "recursor": "8.8.8.8", "domain": "foobar"}`
+	input = `{"ports": {"dns": 8500}, "recursors": ["8.8.8.8","8.8.4.4"], "recursor":"127.0.0.1", "domain": "foobar"}`
 	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -119,7 +120,16 @@ func TestDecodeConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 
-	if config.DNSRecursor != "8.8.8.8" {
+	if len(config.DNSRecursors) != 3 {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.DNSRecursors[0] != "8.8.8.8" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.DNSRecursors[1] != "8.8.4.4" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.DNSRecursors[2] != "127.0.0.1" {
 		t.Fatalf("bad: %#v", config)
 	}
 
@@ -128,7 +138,7 @@ func TestDecodeConfig(t *testing.T) {
 	}
 
 	// RPC configs
-	input = `{"ports": {"http": 1234, "rpc": 8100}, "client_addr": "0.0.0.0"}`
+	input = `{"ports": {"http": 1234, "https": 1243, "rpc": 8100}, "client_addr": "0.0.0.0"}`
 	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -139,6 +149,10 @@ func TestDecodeConfig(t *testing.T) {
 	}
 
 	if config.Ports.HTTP != 1234 {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	if config.Ports.HTTPS != 1243 {
 		t.Fatalf("bad: %#v", config)
 	}
 
@@ -265,6 +279,23 @@ func TestDecodeConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 
+	// Start Join wan
+	input = `{"start_join_wan": ["1.1.1.1", "2.2.2.2"]}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if len(config.StartJoinWan) != 2 {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.StartJoinWan[0] != "1.1.1.1" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.StartJoinWan[1] != "2.2.2.2" {
+		t.Fatalf("bad: %#v", config)
+	}
+
 	// Retry join
 	input = `{"retry_join": ["1.1.1.1", "2.2.2.2"]}`
 	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
@@ -304,6 +335,48 @@ func TestDecodeConfig(t *testing.T) {
 	}
 
 	if config.RetryMaxAttempts != 3 {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	// Retry Join wan
+	input = `{"retry_join_wan": ["1.1.1.1", "2.2.2.2"]}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if len(config.RetryJoinWan) != 2 {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.RetryJoinWan[0] != "1.1.1.1" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.RetryJoinWan[1] != "2.2.2.2" {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	// Retry Interval wan
+	input = `{"retry_interval_wan": "10s"}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if config.RetryIntervalWanRaw != "10s" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.RetryIntervalWan.String() != "10s" {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	// Retry Max wan
+	input = `{"retry_max_wan": 3}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if config.RetryMaxAttemptsWan != 3 {
 		t.Fatalf("bad: %#v", config)
 	}
 
@@ -399,6 +472,17 @@ func TestDecodeConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 
+	// DNS only passing
+	input = `{"dns_config": {"only_passing": true}}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !config.DNSConfig.OnlyPassing {
+		t.Fatalf("bad: %#v", config)
+	}
+
 	// CheckUpdateInterval
 	input = `{"check_update_interval": "10m"}`
 	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
@@ -485,7 +569,7 @@ func TestDecodeConfig(t *testing.T) {
 	}
 
 	// Address overrides
-	input = `{"addresses": {"dns": "0.0.0.0", "http": "127.0.0.1", "rpc": "127.0.0.1"}}`
+	input = `{"addresses": {"dns": "0.0.0.0", "http": "127.0.0.1", "https": "127.0.0.1", "rpc": "127.0.0.1"}}`
 	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -495,6 +579,9 @@ func TestDecodeConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 	if config.Addresses.HTTP != "127.0.0.1" {
+		t.Fatalf("bad: %#v", config)
+	}
+	if config.Addresses.HTTPS != "127.0.0.1" {
 		t.Fatalf("bad: %#v", config)
 	}
 	if config.Addresses.RPC != "127.0.0.1" {
@@ -512,6 +599,218 @@ func TestDecodeConfig(t *testing.T) {
 		t.Fatalf("bad: %#v", config)
 	}
 	if !config.DisableAnonymousSignature {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	// HTTP API response header fields
+	input = `{"http_api_response_headers": {"Access-Control-Allow-Origin": "*", "X-XSS-Protection": "1; mode=block"}}`
+	config, err = DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if config.HTTPAPIResponseHeaders["Access-Control-Allow-Origin"] != "*" {
+		t.Fatalf("bad: %#v", config)
+	}
+
+	if config.HTTPAPIResponseHeaders["X-XSS-Protection"] != "1; mode=block" {
+		t.Fatalf("bad: %#v", config)
+	}
+}
+
+func TestDecodeConfig_invalidKeys(t *testing.T) {
+	input := `{"bad": "no way jose"}`
+	_, err := DecodeConfig(bytes.NewReader([]byte(input)))
+	if err == nil || !strings.Contains(err.Error(), "invalid keys") {
+		t.Fatalf("should have rejected invalid config keys")
+	}
+}
+
+func TestDecodeConfig_Services(t *testing.T) {
+	input := `{
+		"services": [
+			{
+				"id": "red0",
+				"name": "redis",
+				"tags": [
+					"master"
+				],
+				"port": 6000,
+				"check": {
+					"script": "/bin/check_redis -p 6000",
+					"interval": "5s",
+					"ttl": "20s"
+				}
+			},
+			{
+				"id": "red1",
+				"name": "redis",
+				"tags": [
+					"delayed",
+					"slave"
+				],
+				"port": 7000,
+				"check": {
+					"script": "/bin/check_redis -p 7000",
+					"interval": "30s",
+					"ttl": "60s"
+				}
+			}
+		]
+	}`
+
+	config, err := DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := &Config{
+		Services: []*ServiceDefinition{
+			&ServiceDefinition{
+				Check: CheckType{
+					Interval: 5 * time.Second,
+					Script:   "/bin/check_redis -p 6000",
+					TTL:      20 * time.Second,
+				},
+				ID:   "red0",
+				Name: "redis",
+				Tags: []string{
+					"master",
+				},
+				Port: 6000,
+			},
+			&ServiceDefinition{
+				Check: CheckType{
+					Interval: 30 * time.Second,
+					Script:   "/bin/check_redis -p 7000",
+					TTL:      60 * time.Second,
+				},
+				ID:   "red1",
+				Name: "redis",
+				Tags: []string{
+					"delayed",
+					"slave",
+				},
+				Port: 7000,
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(config, expected) {
+		t.Fatalf("bad: %#v", config)
+	}
+}
+
+func TestDecodeConfig_Checks(t *testing.T) {
+	input := `{
+		"checks": [
+			{
+				"id": "chk1",
+				"name": "mem",
+				"script": "/bin/check_mem",
+				"interval": "5s"
+			},
+			{
+				"id": "chk2",
+				"name": "cpu",
+				"script": "/bin/check_cpu",
+				"interval": "10s"
+			}
+		]
+	}`
+
+	config, err := DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := &Config{
+		Checks: []*CheckDefinition{
+			&CheckDefinition{
+				ID:   "chk1",
+				Name: "mem",
+				CheckType: CheckType{
+					Script:   "/bin/check_mem",
+					Interval: 5 * time.Second,
+				},
+			},
+			&CheckDefinition{
+				ID:   "chk2",
+				Name: "cpu",
+				CheckType: CheckType{
+					Script:   "/bin/check_cpu",
+					Interval: 10 * time.Second,
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(config, expected) {
+		t.Fatalf("bad: %#v", config)
+	}
+}
+
+func TestDecodeConfig_Multiples(t *testing.T) {
+	input := `{
+		"services": [
+			{
+				"id": "red0",
+				"name": "redis",
+				"tags": [
+					"master"
+				],
+				"port": 6000,
+				"check": {
+					"script": "/bin/check_redis -p 6000",
+					"interval": "5s",
+					"ttl": "20s"
+				}
+			}
+		],
+		"checks": [
+			{
+				"id": "chk1",
+				"name": "mem",
+				"script": "/bin/check_mem",
+				"interval": "10s"
+			}
+		]
+	}`
+
+	config, err := DecodeConfig(bytes.NewReader([]byte(input)))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := &Config{
+		Services: []*ServiceDefinition{
+			&ServiceDefinition{
+				Check: CheckType{
+					Interval: 5 * time.Second,
+					Script:   "/bin/check_redis -p 6000",
+					TTL:      20 * time.Second,
+				},
+				ID:   "red0",
+				Name: "redis",
+				Tags: []string{
+					"master",
+				},
+				Port: 6000,
+			},
+		},
+		Checks: []*CheckDefinition{
+			&CheckDefinition{
+				ID:   "chk1",
+				Name: "mem",
+				CheckType: CheckType{
+					Script:   "/bin/check_mem",
+					Interval: 10 * time.Second,
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(config, expected) {
 		t.Fatalf("bad: %#v", config)
 	}
 }
@@ -602,7 +901,6 @@ func TestMergeConfig(t *testing.T) {
 		BootstrapExpect:        0,
 		Datacenter:             "dc1",
 		DataDir:                "/tmp/foo",
-		DNSRecursor:            "127.0.0.1:1001",
 		Domain:                 "basic",
 		LogLevel:               "debug",
 		NodeName:               "foo",
@@ -615,6 +913,7 @@ func TestMergeConfig(t *testing.T) {
 		EnableDebug:            false,
 		CheckUpdateIntervalRaw: "8m",
 		RetryIntervalRaw:       "10s",
+		RetryIntervalWanRaw:    "10s",
 	}
 
 	b := &Config{
@@ -622,7 +921,7 @@ func TestMergeConfig(t *testing.T) {
 		BootstrapExpect: 3,
 		Datacenter:      "dc2",
 		DataDir:         "/tmp/bar",
-		DNSRecursor:     "127.0.0.2:1001",
+		DNSRecursors:    []string{"127.0.0.2:1001"},
 		DNSConfig: DNSConfig{
 			NodeTTL: 10 * time.Second,
 			ServiceTTL: map[string]time.Duration{
@@ -645,11 +944,13 @@ func TestMergeConfig(t *testing.T) {
 			SerfLan: 4,
 			SerfWan: 5,
 			Server:  6,
+			HTTPS:   7,
 		},
 		Addresses: AddressConfig{
-			DNS:  "127.0.0.1",
-			HTTP: "127.0.0.2",
-			RPC:  "127.0.0.3",
+			DNS:   "127.0.0.1",
+			HTTP:  "127.0.0.2",
+			RPC:   "127.0.0.3",
+			HTTPS: "127.0.0.4",
 		},
 		Server:                 true,
 		LeaveOnTerm:            true,
@@ -663,12 +964,16 @@ func TestMergeConfig(t *testing.T) {
 		Checks:                 []*CheckDefinition{nil},
 		Services:               []*ServiceDefinition{nil},
 		StartJoin:              []string{"1.1.1.1"},
+		StartJoinWan:           []string{"1.1.1.1"},
 		UiDir:                  "/opt/consul-ui",
 		EnableSyslog:           true,
 		RejoinAfterLeave:       true,
 		RetryJoin:              []string{"1.1.1.1"},
 		RetryIntervalRaw:       "10s",
 		RetryInterval:          10 * time.Second,
+		RetryJoinWan:           []string{"1.1.1.1"},
+		RetryIntervalWanRaw:    "10s",
+		RetryIntervalWan:       10 * time.Second,
 		CheckUpdateInterval:    8 * time.Minute,
 		CheckUpdateIntervalRaw: "8m",
 		ACLToken:               "1234",
@@ -690,12 +995,15 @@ func TestMergeConfig(t *testing.T) {
 		StatsdAddr:                "127.0.0.1:7251",
 		DisableUpdateCheck:        true,
 		DisableAnonymousSignature: true,
+		HTTPAPIResponseHeaders: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}
 
 	c := MergeConfig(a, b)
 
 	if !reflect.DeepEqual(c, b) {
-		t.Fatalf("should be equal %v %v", c, b)
+		t.Fatalf("should be equal %#v %#v", c, b)
 	}
 }
 
@@ -758,5 +1066,17 @@ func TestReadConfigPaths_dir(t *testing.T) {
 
 	if config.NodeName != "baz" {
 		t.Fatalf("bad: %#v", config)
+	}
+}
+
+func TestUnixSockets(t *testing.T) {
+	path1, ok := unixSocketAddr("unix:///path/to/socket")
+	if !ok || path1 != "/path/to/socket" {
+		t.Fatalf("bad: %v %v", ok, path1)
+	}
+
+	path2, ok := unixSocketAddr("notunix://blah")
+	if ok || path2 != "" {
+		t.Fatalf("bad: %v %v", ok, path2)
 	}
 }

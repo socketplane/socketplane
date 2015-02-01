@@ -1,46 +1,55 @@
 {
 	"ImportPath": "github.com/socketplane/ecc",
-	"GoVersion": "go1.2.1",
+	"GoVersion": "go1.3.3",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/armon/circbuf",
 			"Rev": "f092b4f207b6e5cce0569056fba9e1a2735cb6cf"
 		},
 		{
-			"ImportPath": "github.com/armon/consul-api",
-			"Rev": "0e644b80dc2054cd4edbfa7a273b87f37fc120a1"
-		},
-		{
 			"ImportPath": "github.com/armon/go-metrics",
-			"Rev": "02a28a76dd20081bdd2a92133d467164450a926b"
+			"Rev": "eb0af217e5e9747e41dd5303755356b62d28e3ec"
 		},
 		{
 			"ImportPath": "github.com/armon/go-radix",
-			"Rev": "b045fc0ad3587e8620fb42a0dea882cf8c08aef9"
+			"Rev": "e39d623f12e8e41c7b5529e9a9dd67a1e2261f80"
 		},
 		{
 			"ImportPath": "github.com/armon/gomdb",
-			"Rev": "a8e036c4dabe7437014ecf9dbc03c6f6f0766ef8"
+			"Rev": "151f2e08ef45cb0e57d694b2562f351955dff572"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/acl",
-			"Comment": "v0.4.1",
-			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/command",
-			"Comment": "v0.4.1",
-			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/consul",
-			"Comment": "v0.4.1",
-			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/tlsutil",
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/watch",
-			"Comment": "v0.4.1",
-			"Rev": "aaddfa2ba98f9fb95368115201fd172ff68ee8a5"
+			"Comment": "v0.4.1-457-gba96535",
+			"Rev": "ba96535cfc6633cc5848a739a2216972949ce140"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-checkpoint",
@@ -49,6 +58,10 @@
 		{
 			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
 			"Rev": "71c2886f5a673a35f909803f38ece5810165097b"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-multierror",
+			"Rev": "2167c8ec40776024589f483a6b836489e47e1049"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-syslog",
@@ -60,7 +73,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/hcl",
-			"Rev": "2c88e7ea6e73ce6455c11cc8a8375e6220913f7f"
+			"Rev": "513e04c400ee2e81e97f5e011c08fb42c6f69b84"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/logutils",
@@ -68,11 +81,11 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/memberlist",
-			"Rev": "16d947e2d4b3f1fe508ee1d9b6ec34b8fd2e96d8"
+			"Rev": "9a1e242e454d2443df330bdd51a436d5a9058fc4"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/raft",
-			"Rev": "cc9710ab540985954a67c108f414aa3152f5916f"
+			"Rev": "febcccbf9f5818e54dcd26cca26f120441d0bc18"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/raft-mdb",
@@ -80,13 +93,8 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/serf/serf",
-			"Comment": "v0.6.3-63-g791df5d",
-			"Rev": "791df5d5fc18437e54052a45e2d20c766ee15028"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/terraform/helper/multierror",
-			"Comment": "v0.3.1-109-g5d89cae",
-			"Rev": "5d89cae1d79e6710386a1d0d9797eb276b4d3fb6"
+			"Comment": "v0.6.3-68-g95baddd",
+			"Rev": "95baddd3d3abd3d4dfae8228b44fb430d710436a"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/yamux",
@@ -95,6 +103,21 @@
 		{
 			"ImportPath": "github.com/inconshreveable/muxado",
 			"Rev": "f693c7e88ba316d1a0ae3e205e22a01aa3ec2848"
+		},
+		{
+			"ImportPath": "github.com/laher/goxc/config",
+			"Comment": "v0.8.3-117-g6629689",
+			"Rev": "6629689d44fd183f8d29a3f2d1cd4e6174294299"
+		},
+		{
+			"ImportPath": "github.com/laher/goxc/core",
+			"Comment": "v0.8.3-117-g6629689",
+			"Rev": "6629689d44fd183f8d29a3f2d1cd4e6174294299"
+		},
+		{
+			"ImportPath": "github.com/laher/goxc/typeutils",
+			"Comment": "v0.8.3-117-g6629689",
+			"Rev": "6629689d44fd183f8d29a3f2d1cd4e6174294299"
 		},
 		{
 			"ImportPath": "github.com/miekg/dns",

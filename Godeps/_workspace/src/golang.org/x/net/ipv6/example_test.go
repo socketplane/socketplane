@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/internal/iana"
-	"golang.org/x/net/internal/icmp"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv6"
+	"golang.org/x/net/icmp"
 )
 
 func ExampleConn_markingTCP() {
@@ -122,8 +122,8 @@ func ExamplePacketConn_tracingIPPacketRoute() {
 	}
 	var f ipv6.ICMPFilter
 	f.SetAll(true)
-	f.Set(ipv6.ICMPTypeTimeExceeded, false)
-	f.Set(ipv6.ICMPTypeEchoReply, false)
+	f.Accept(ipv6.ICMPTypeTimeExceeded)
+	f.Accept(ipv6.ICMPTypeEchoReply)
 	if err := p.SetICMPFilter(&f); err != nil {
 		log.Fatal(err)
 	}

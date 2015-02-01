@@ -49,6 +49,10 @@ const (
 
 	// Maximum number of cached ACL entries
 	aclCacheSize = 256
+
+	// raftLogCacheSize is the maximum number of logs to cache in-memory.
+	// This is used to reduce disk I/O for the recently commited entries.
+	raftLogCacheSize = 512
 )
 
 // Server is Consul server which manages the service discovery,
@@ -128,6 +132,16 @@ type Server struct {
 	// which SHOULD only consist of Consul servers
 	serfWAN *serf.Serf
 
+	// sessionTimers track the expiration time of each Session that has
+	// a TTL. On expiration, a SessionDestroy event will occur, and
+	// destroy the session via standard session destory processing
+	sessionTimers     map[string]*time.Timer
+	sessionTimersLock sync.Mutex
+
+	// tombstoneGC is used to track the pending GC invocations
+	// for the KV tombstones
+	tombstoneGC *TombstoneGC
+
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
@@ -168,19 +182,26 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// Create the tlsConfig for outgoing connections
-	tlsConfig, err := config.OutgoingTLSConfig()
+	tlsConf := config.tlsConfig()
+	tlsConfig, err := tlsConf.OutgoingTLSConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	// Get the incoming tls config
-	incomingTLS, err := config.IncomingTLSConfig()
+	incomingTLS, err := tlsConf.IncomingTLSConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a logger
 	logger := log.New(config.LogOutput, "", log.LstdFlags)
+
+	// Create the tombstone GC
+	gc, err := NewTombstoneGC(config.TombstoneTTL, config.TombstoneTTLGranularity)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create server
 	s := &Server{
@@ -194,6 +215,7 @@ func NewServer(config *Config) (*Server, error) {
 		remoteConsuls: make(map[string][]*serverParts),
 		rpcServer:     rpc.NewServer(),
 		rpcTLS:        incomingTLS,
+		tombstoneGC:   gc,
 		shutdownCh:    make(chan struct{}),
 	}
 
@@ -250,6 +272,9 @@ func NewServer(config *Config) (*Server, error) {
 
 	// Start listening for RPC requests
 	go s.listen()
+
+	// Start the metrics handlers
+	go s.sessionStats()
 	return s, nil
 }
 
@@ -281,6 +306,11 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 	conf.SnapshotPath = filepath.Join(s.config.DataDir, path)
 	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = s.config.RejoinAfterLeave
+	if wan {
+		conf.Merge = &wanMergeDelegate{logger: s.logger}
+	} else {
+		conf.Merge = &lanMergeDelegate{logger: s.logger, dc: s.config.Datacenter}
+	}
 
 	// Until Consul supports this fully, we disable automatic resolution.
 	// When enabled, the Serf gossip may just turn off if we are the minority
@@ -310,7 +340,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	var err error
-	s.fsm, err = NewFSM(statePath, s.config.LogOutput)
+	s.fsm, err = NewFSM(s.tombstoneGC, statePath, s.config.LogOutput)
 	if err != nil {
 		return err
 	}
@@ -335,6 +365,13 @@ func (s *Server) setupRaft() error {
 		return err
 	}
 	s.raftStore = store
+
+	// Wrap the store in a LogCache to improve performance
+	cacheStore, err := raft.NewLogCache(raftLogCacheSize, store)
+	if err != nil {
+		store.Close()
+		return err
+	}
 
 	// Create the snapshot store
 	snapshots, err := raft.NewFileSnapshotStore(path, snapshotsRetained, s.config.LogOutput)
@@ -366,7 +403,7 @@ func (s *Server) setupRaft() error {
 	s.config.RaftConfig.LogOutput = s.config.LogOutput
 
 	// Setup the Raft store
-	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, store, store,
+	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, cacheStore, store,
 		snapshots, s.raftPeers, trans)
 	if err != nil {
 		store.Close()
@@ -548,6 +585,21 @@ func (s *Server) UserEvent(name string, payload []byte) error {
 // IsLeader checks if this server is the cluster leader
 func (s *Server) IsLeader() bool {
 	return s.raft.State() == raft.Leader
+}
+
+// KeyManagerLAN returns the LAN Serf keyring manager
+func (s *Server) KeyManagerLAN() *serf.KeyManager {
+	return s.serfLAN.KeyManager()
+}
+
+// KeyManagerWAN returns the WAN Serf keyring manager
+func (s *Server) KeyManagerWAN() *serf.KeyManager {
+	return s.serfWAN.KeyManager()
+}
+
+// Encrypted determines if gossip is encrypted
+func (s *Server) Encrypted() bool {
+	return s.serfLAN.EncryptionEnabled() && s.serfWAN.EncryptionEnabled()
 }
 
 // inmemCodec is used to do an RPC call without going over a network

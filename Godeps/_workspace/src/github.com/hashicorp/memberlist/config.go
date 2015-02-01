@@ -131,6 +131,7 @@ type Config struct {
 	DelegateProtocolMax     uint8
 	Events                  EventDelegate
 	Conflict                ConflictDelegate
+	Merge                   MergeDelegate
 
 	// LogOutput is the writer where logs should be sent. If this is not
 	// set, logging will go to stderr by default.
@@ -204,8 +205,5 @@ func DefaultLocalConfig() *Config {
 
 // Returns whether or not encryption is enabled
 func (c *Config) EncryptionEnabled() bool {
-	if c.Keyring == nil || len(c.Keyring.GetKeys()) == 0 {
-		return false
-	}
-	return true
+	return c.Keyring != nil && len(c.Keyring.GetKeys()) > 0
 }

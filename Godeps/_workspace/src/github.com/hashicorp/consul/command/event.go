@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/armon/consul-api"
+	consulapi "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/hashicorp/consul/api"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/mitchellh/cli"
 )
 

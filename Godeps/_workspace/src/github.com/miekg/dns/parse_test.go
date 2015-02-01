@@ -386,8 +386,8 @@ func TestNSEC(t *testing.T) {
 
 func TestParseLOC(t *testing.T) {
 	lt := map[string]string{
-		"SW1A2AA.find.me.uk.	LOC	51 30 12.748 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m": "SW1A2AA.find.me.uk.\t3600\tIN\tLOC\t51 30 12.748 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m",
-		"SW1A2AA.find.me.uk.	LOC	51 0 0.0 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m": "SW1A2AA.find.me.uk.\t3600\tIN\tLOC\t51 00 0.000 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m",
+		"SW1A2AA.find.me.uk.	LOC	51 30 12.748 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m": "SW1A2AA.find.me.uk.\t3600\tIN\tLOC\t51 30 12.748 N 00 07 39.611 W 0m 0.00m 0.00m 0.00m",
+		"SW1A2AA.find.me.uk.	LOC	51 0 0.0 N 00 07 39.611 W 0.00m 0.00m 0.00m 0.00m": "SW1A2AA.find.me.uk.\t3600\tIN\tLOC\t51 00 0.000 N 00 07 39.611 W 0m 0.00m 0.00m 0.00m",
 	}
 	for i, o := range lt {
 		rr, e := NewRR(i)
@@ -652,7 +652,7 @@ moutamassey             NS      ns01.yahoodomains.jp.
 }
 
 func ExampleHIP() {
-	h := `www.example.com      IN  HIP ( 2 200100107B1A74DF365639CC39F1D578
+	h := `www.example.com     IN  HIP ( 2 200100107B1A74DF365639CC39F1D578
                 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p
 9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQ
 b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
@@ -661,7 +661,7 @@ b1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
 		fmt.Printf("%s\n", hip.String())
 	}
 	// Output:
-	// www.example.com.	3600	IN	HIP	 2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D rvs.example.com.
+	// www.example.com.	3600	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D rvs.example.com.
 }
 
 func TestHIP(t *testing.T) {
@@ -1230,7 +1230,7 @@ type algorithm struct {
 	bits int
 }
 
-func TestNewPrivateKeyECDSA(t *testing.T) {
+func TestNewPrivateKey(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
@@ -1239,7 +1239,7 @@ func TestNewPrivateKeyECDSA(t *testing.T) {
 		algorithm{ECDSAP384SHA384, 384},
 		algorithm{RSASHA1, 1024},
 		algorithm{RSASHA256, 2048},
-		// algorithm{DSA, 1024},  // TODO: STILL BROKEN!
+		algorithm{DSA, 1024},
 	}
 
 	for _, algo := range algorithms {
@@ -1258,6 +1258,9 @@ func TestNewPrivateKeyECDSA(t *testing.T) {
 
 		newPrivKey, err := key.NewPrivateKey(key.PrivateKeyString(privkey))
 		if err != nil {
+			t.Log(key.String())
+			t.Log(key.PrivateKeyString(privkey))
+
 			t.Fatal(err.Error())
 		}
 
@@ -1269,5 +1272,104 @@ func TestNewPrivateKeyECDSA(t *testing.T) {
 		if !reflect.DeepEqual(privkey, newPrivKey) {
 			t.Errorf("[%v] Private keys differ:\n%#v\n%#v\n", AlgorithmToString[algo.name], privkey, newPrivKey)
 		}
+	}
+}
+
+// special input test
+func TestNewRRSpecial(t *testing.T) {
+	var (
+		rr     RR
+		err    error
+		expect string
+	)
+
+	rr, err = NewRR("; comment")
+	expect = ""
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr != nil {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+
+	rr, err = NewRR("")
+	expect = ""
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr != nil {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+
+	rr, err = NewRR("$ORIGIN foo.")
+	expect = ""
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr != nil {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+
+	rr, err = NewRR(" ")
+	expect = ""
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr != nil {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+
+	rr, err = NewRR("\n")
+	expect = ""
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr != nil {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+
+	rr, err = NewRR("foo. A 1.1.1.1\nbar. A 2.2.2.2")
+	expect = "foo.\t3600\tIN\tA\t1.1.1.1"
+	if err != nil {
+		t.Errorf("unexpected err: %s", err)
+	}
+	if rr == nil || rr.String() != expect {
+		t.Errorf("unexpected result: [%s] != [%s]", rr, expect)
+	}
+}
+
+func TestPrintfVerbsRdata(t *testing.T) {
+	x, _ := NewRR("www.miek.nl. IN MX 20 mx.miek.nl.")
+	if Field(x, 1) != "20" {
+		t.Errorf("should be 20")
+	}
+	if Field(x, 2) != "mx.miek.nl." {
+		t.Errorf("should be mx.miek.nl.")
+	}
+
+	x, _ = NewRR("www.miek.nl. IN A 127.0.0.1")
+	if Field(x, 1) != "127.0.0.1" {
+		t.Errorf("should be 127.0.0.1")
+	}
+
+	x, _ = NewRR("www.miek.nl. IN AAAA ::1")
+	if Field(x, 1) != "::1" {
+		t.Errorf("should be ::1")
+	}
+
+	x, _ = NewRR("www.miek.nl. IN NSEC a.miek.nl. A NS SOA MX AAAA")
+	if Field(x, 1) != "a.miek.nl." {
+		t.Errorf("should be a.miek.nl.")
+	}
+	if Field(x, 2) != "A NS SOA MX AAAA" {
+		t.Errorf("should be A NS SOA MX AAAA")
+	}
+
+	x, _ = NewRR("www.miek.nl. IN TXT \"first\" \"second\"")
+	if Field(x, 1) != "first second" {
+		t.Errorf("should be first second")
+	}
+	if Field(x, 0) != "" {
+		t.Errorf("should be empty")
 	}
 }
