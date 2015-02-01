@@ -29,6 +29,7 @@ var (
 		ssoReceiveDst:         {sysIP_RECVDSTADDR, ssoTypeInt},
 		ssoReceiveInterface:   {sysIP_RECVIF, ssoTypeInt},
 		ssoHeaderPrepend:      {sysIP_HDRINCL, ssoTypeInt},
+		ssoStripHeader:        {sysIP_STRIPHDR, ssoTypeInt},
 		ssoJoinGroup:          {sysIP_ADD_MEMBERSHIP, ssoTypeIPMreq},
 		ssoLeaveGroup:         {sysIP_DROP_MEMBERSHIP, ssoTypeIPMreq},
 	}

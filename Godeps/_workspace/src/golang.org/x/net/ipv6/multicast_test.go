@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/internal/iana"
-	"golang.org/x/net/internal/icmp"
-	"golang.org/x/net/internal/nettest"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv6"
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/internal/nettest"
 )
 
 var packetConnReadWriteMulticastUDPTests = []struct {
@@ -31,16 +31,16 @@ func TestPacketConnReadWriteMulticastUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "freebsd": // due to a bug on loopback marking
 		// See http://www.freebsd.org/cgi/query-pr.cgi?pr=180065.
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	case "nacl", "plan9", "solaris", "windows":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv6 {
 		t.Skip("ipv6 is not supported")
 	}
 	ifi := nettest.RoutedInterface("ip6", net.FlagUp|net.FlagMulticast|net.FlagLoopback)
 	if ifi == nil {
-		t.Skipf("not available on %q", runtime.GOOS)
+		t.Skipf("not available on %s", runtime.GOOS)
 	}
 
 	for _, tt := range packetConnReadWriteMulticastUDPTests {
@@ -64,7 +64,7 @@ func TestPacketConnReadWriteMulticastUDP(t *testing.T) {
 				switch runtime.GOOS {
 				case "freebsd", "linux":
 				default: // platforms that don't support MLDv2 fail here
-					t.Logf("not supported on %q", runtime.GOOS)
+					t.Logf("not supported on %s", runtime.GOOS)
 					continue
 				}
 				t.Fatal(err)
@@ -95,7 +95,7 @@ func TestPacketConnReadWriteMulticastUDP(t *testing.T) {
 		for i, toggle := range []bool{true, false, true} {
 			if err := p.SetControlMessage(cf, toggle); err != nil {
 				if nettest.ProtocolNotSupported(err) {
-					t.Logf("not supported on %q", runtime.GOOS)
+					t.Logf("not supported on %s", runtime.GOOS)
 					continue
 				}
 				t.Fatal(err)
@@ -133,19 +133,19 @@ func TestPacketConnReadWriteMulticastICMP(t *testing.T) {
 	switch runtime.GOOS {
 	case "freebsd": // due to a bug on loopback marking
 		// See http://www.freebsd.org/cgi/query-pr.cgi?pr=180065.
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	case "nacl", "plan9", "solaris", "windows":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv6 {
 		t.Skip("ipv6 is not supported")
 	}
-	if os.Getuid() != 0 {
-		t.Skip("must be root")
+	if m, ok := nettest.SupportsRawIPSocket(); !ok {
+		t.Skip(m)
 	}
 	ifi := nettest.RoutedInterface("ip6", net.FlagUp|net.FlagMulticast|net.FlagLoopback)
 	if ifi == nil {
-		t.Skipf("not available on %q", runtime.GOOS)
+		t.Skipf("not available on %s", runtime.GOOS)
 	}
 
 	for _, tt := range packetConnReadWriteMulticastICMPTests {
@@ -168,7 +168,7 @@ func TestPacketConnReadWriteMulticastICMP(t *testing.T) {
 				switch runtime.GOOS {
 				case "freebsd", "linux":
 				default: // platforms that don't support MLDv2 fail here
-					t.Logf("not supported on %q", runtime.GOOS)
+					t.Logf("not supported on %s", runtime.GOOS)
 					continue
 				}
 				t.Fatal(err)
@@ -197,7 +197,7 @@ func TestPacketConnReadWriteMulticastICMP(t *testing.T) {
 
 		var f ipv6.ICMPFilter
 		f.SetAll(true)
-		f.Set(ipv6.ICMPTypeEchoReply, false)
+		f.Accept(ipv6.ICMPTypeEchoReply)
 		if err := p.SetICMPFilter(&f); err != nil {
 			t.Fatal(err)
 		}
@@ -228,7 +228,7 @@ func TestPacketConnReadWriteMulticastICMP(t *testing.T) {
 			}
 			if err := p.SetControlMessage(cf, toggle); err != nil {
 				if nettest.ProtocolNotSupported(err) {
-					t.Logf("not supported on %q", runtime.GOOS)
+					t.Logf("not supported on %s", runtime.GOOS)
 					continue
 				}
 				t.Fatal(err)
@@ -246,7 +246,7 @@ func TestPacketConnReadWriteMulticastICMP(t *testing.T) {
 			if n, cm, _, err := p.ReadFrom(rb); err != nil {
 				switch runtime.GOOS {
 				case "darwin": // older darwin kernels have some limitation on receiving icmp packet through raw socket
-					t.Logf("not supported on %q", runtime.GOOS)
+					t.Logf("not supported on %s", runtime.GOOS)
 					continue
 				}
 				t.Fatal(err)

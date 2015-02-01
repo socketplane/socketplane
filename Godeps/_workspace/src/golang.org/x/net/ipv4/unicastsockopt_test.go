@@ -6,23 +6,22 @@ package ipv4_test
 
 import (
 	"net"
-	"os"
 	"runtime"
 	"testing"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/internal/iana"
-	"golang.org/x/net/internal/nettest"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv4"
+	"golang.org/x/net/internal/nettest"
 )
 
 func TestConnUnicastSocketOptions(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "solaris":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	ifi := nettest.RoutedInterface("ip4", net.FlagUp|net.FlagLoopback)
 	if ifi == nil {
-		t.Skipf("not available on %q", runtime.GOOS)
+		t.Skipf("not available on %s", runtime.GOOS)
 	}
 
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
@@ -55,16 +54,17 @@ var packetConnUnicastSocketOptionTests = []struct {
 func TestPacketConnUnicastSocketOptions(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "solaris":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	ifi := nettest.RoutedInterface("ip4", net.FlagUp|net.FlagLoopback)
 	if ifi == nil {
-		t.Skipf("not available on %q", runtime.GOOS)
+		t.Skipf("not available on %s", runtime.GOOS)
 	}
 
+	m, ok := nettest.SupportsRawIPSocket()
 	for _, tt := range packetConnUnicastSocketOptionTests {
-		if tt.net == "ip4" && os.Getuid() != 0 {
-			t.Log("must be root")
+		if tt.net == "ip4" && !ok {
+			t.Log(m)
 			continue
 		}
 		c, err := net.ListenPacket(tt.net+tt.proto, tt.addr)
@@ -80,14 +80,14 @@ func TestPacketConnUnicastSocketOptions(t *testing.T) {
 func TestRawConnUnicastSocketOptions(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "solaris":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
-	if os.Getuid() != 0 {
-		t.Skip("must be root")
+	if m, ok := nettest.SupportsRawIPSocket(); !ok {
+		t.Skip(m)
 	}
 	ifi := nettest.RoutedInterface("ip4", net.FlagUp|net.FlagLoopback)
 	if ifi == nil {
-		t.Skipf("not available on %q", runtime.GOOS)
+		t.Skipf("not available on %s", runtime.GOOS)
 	}
 
 	c, err := net.ListenPacket("ip4:icmp", "127.0.0.1")
@@ -116,7 +116,7 @@ func testUnicastSocketOptions(t *testing.T, c testIPv4UnicastConn) {
 	switch runtime.GOOS {
 	case "windows":
 		// IP_TOS option is supported on Windows 8 and beyond.
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	if err := c.SetTOS(tos); err != nil {

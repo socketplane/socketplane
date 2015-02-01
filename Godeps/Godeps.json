@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.2.1",
+	"GoVersion": "go1.3.2",
 	"Packages": [
 		"./..."
 	],
@@ -46,8 +46,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libcontainer/netlink",
-			"Comment": "v0.1.1",
-			"Rev": "4b0a84485d315a53a792687b2f49dba3e6e3d9c6"
+			"Comment": "v1.4.0-105-ge599843",
+			"Rev": "e59984353acde7207aa1115e261847bf4ddd9a8f"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -169,18 +169,15 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/iana",
-			"Comment": "null-223",
-			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+			"Rev": "9dd48c277bcb2bb2cc3eb6a6368a486a567d3562"
 		},
 		{
 			"ImportPath": "golang.org/x/net/ipv4",
-			"Comment": "null-223",
-			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+			"Rev": "9dd48c277bcb2bb2cc3eb6a6368a486a567d3562"
 		},
 		{
 			"ImportPath": "golang.org/x/net/ipv6",
-			"Comment": "null-223",
-			"Rev": "5dedbdc181629d2f3557caf2667e60eb82c5e6d7"
+			"Rev": "9dd48c277bcb2bb2cc3eb6a6368a486a567d3562"
 		}
 	]
 }

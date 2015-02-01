@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/internal/iana"
-	"golang.org/x/net/internal/nettest"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv6"
+	"golang.org/x/net/internal/nettest"
 )
 
 func benchmarkUDPListener() (net.PacketConn, net.Addr, error) {
@@ -102,7 +102,7 @@ func benchmarkReadWriteIPv6UDP(b *testing.B, p *ipv6.PacketConn, wb, rb []byte, 
 func TestPacketConnConcurrentReadWriteUnicastUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9", "solaris", "windows":
-		t.Skipf("not supported on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv6 {
 		t.Skip("ipv6 is not supported")
@@ -127,7 +127,7 @@ func TestPacketConnConcurrentReadWriteUnicastUDP(t *testing.T) {
 
 	if err := p.SetControlMessage(cf, true); err != nil { // probe before test
 		if nettest.ProtocolNotSupported(err) {
-			t.Skipf("not supported on %q", runtime.GOOS)
+			t.Skipf("not supported on %s", runtime.GOOS)
 		}
 		t.Fatal(err)
 	}

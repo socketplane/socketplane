@@ -1,8 +1,8 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ipv6_test
+package ipv4_test
 
 import (
 	"net"
@@ -10,15 +10,15 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv6"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/golang.org/x/net/ipv4"
 	"golang.org/x/net/internal/nettest"
 )
 
 var icmpStringTests = []struct {
-	in  ipv6.ICMPType
+	in  ipv4.ICMPType
 	out string
 }{
-	{ipv6.ICMPTypeDestinationUnreachable, "destination unreachable"},
+	{ipv4.ICMPTypeDestinationUnreachable, "destination unreachable"},
 
 	{256, "<nil>"},
 }
@@ -34,26 +34,27 @@ func TestICMPString(t *testing.T) {
 
 func TestICMPFilter(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "solaris", "windows":
+	case "linux":
+	default:
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	var f ipv6.ICMPFilter
+	var f ipv4.ICMPFilter
 	for _, toggle := range []bool{false, true} {
 		f.SetAll(toggle)
-		for _, typ := range []ipv6.ICMPType{
-			ipv6.ICMPTypeDestinationUnreachable,
-			ipv6.ICMPTypeEchoReply,
-			ipv6.ICMPTypeNeighborSolicitation,
-			ipv6.ICMPTypeDuplicateAddressConfirmation,
+		for _, typ := range []ipv4.ICMPType{
+			ipv4.ICMPTypeDestinationUnreachable,
+			ipv4.ICMPTypeEchoReply,
+			ipv4.ICMPTypeTimeExceeded,
+			ipv4.ICMPTypeParameterProblem,
 		} {
 			f.Accept(typ)
 			if f.WillBlock(typ) {
-				t.Errorf("ipv6.ICMPFilter.Set(%v, false) failed", typ)
+				t.Errorf("ipv4.ICMPFilter.Set(%v, false) failed", typ)
 			}
 			f.Block(typ)
 			if !f.WillBlock(typ) {
-				t.Errorf("ipv6.ICMPFilter.Set(%v, true) failed", typ)
+				t.Errorf("ipv4.ICMPFilter.Set(%v, true) failed", typ)
 			}
 		}
 	}
@@ -61,28 +62,26 @@ func TestICMPFilter(t *testing.T) {
 
 func TestSetICMPFilter(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9", "solaris", "windows":
+	case "linux":
+	default:
 		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-	if !supportsIPv6 {
-		t.Skip("ipv6 is not supported")
 	}
 	if m, ok := nettest.SupportsRawIPSocket(); !ok {
 		t.Skip(m)
 	}
 
-	c, err := net.ListenPacket("ip6:ipv6-icmp", "::1")
+	c, err := net.ListenPacket("ip4:icmp", "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
 
-	p := ipv6.NewPacketConn(c)
+	p := ipv4.NewPacketConn(c)
 
-	var f ipv6.ICMPFilter
+	var f ipv4.ICMPFilter
 	f.SetAll(true)
-	f.Accept(ipv6.ICMPTypeEchoRequest)
-	f.Accept(ipv6.ICMPTypeEchoReply)
+	f.Accept(ipv4.ICMPTypeEcho)
+	f.Accept(ipv4.ICMPTypeEchoReply)
 	if err := p.SetICMPFilter(&f); err != nil {
 		t.Fatal(err)
 	}
