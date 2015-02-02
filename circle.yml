@@ -24,7 +24,7 @@ dependencies:
 
 test:
   override:
-    - sudo -E make test:
+    - sudo -E make test-local:
         pwd: ../.go_workspace/src/${REPO_PATH}
   post:
     - sudo fig stop:

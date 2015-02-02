@@ -2,7 +2,9 @@ package daemon
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/socketplane/socketplane/datastore"
@@ -11,8 +13,10 @@ import (
 var subnetArray []*net.IPNet
 
 func TestInit(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	if os.Getuid() != 0 {
+		msg := "Skipped test because it requires root privileges."
+		log.Printf(msg)
+		t.Skip(msg)
 	}
 	err := datastore.Init("eth0", true)
 	if err != nil {
@@ -28,8 +32,10 @@ func TestInit(t *testing.T) {
 }
 
 func TestNetworkCreate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	if os.Getuid() != 0 {
+		msg := "Skipped test because it requires root privileges."
+		log.Printf(msg)
+		t.Skip(msg)
 	}
 	for i := 0; i < len(subnetArray); i++ {
 		network, err := CreateNetwork(fmt.Sprintf("Network-%d", i+1), subnetArray[i])
@@ -41,8 +47,10 @@ func TestNetworkCreate(t *testing.T) {
 }
 
 func TestGetNetwork(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	if os.Getuid() != 0 {
+		msg := "Skipped test because it requires root privileges."
+		log.Printf(msg)
+		t.Skip(msg)
 	}
 	for i := 0; i < 5; i++ {
 		network, _ := GetNetwork(fmt.Sprintf("Network-%d", i+1))
@@ -56,8 +64,10 @@ func TestGetNetwork(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	if os.Getuid() != 0 {
+		msg := "Skipped test because it requires root privileges."
+		log.Printf(msg)
+		t.Skip(msg)
 	}
 	for i := 0; i < 5; i++ {
 		err := DeleteNetwork(fmt.Sprintf("Network-%d", i+1))
