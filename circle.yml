@@ -15,20 +15,19 @@ dependencies:
     - cp -r ../socketplane ${GOPATH}/src/${ORG_PATH}
     - mkdir -p ${CIRCLE_ARTIFACTS}/coverage
     - go get github.com/mattn/goveralls
+    - sudo ln -s /usr/local/go/bin/go /usr/bin/go
   post:
     - sudo pip install -qq fig:
         pwd: ../.go_workspace/src/${REPO_PATH}
-    - fig up -d:
+    - sudo fig up -d:
         pwd: ../.go_workspace/src/${REPO_PATH}
 
 test:
   override:
-    - make build:
-        pwd: ../.go_workspace/src/${REPO_PATH}
-    - make test:
+    - sudo -E make test:
         pwd: ../.go_workspace/src/${REPO_PATH}
   post:
-    - fig stop:
+    - sudo fig stop:
         pwd: ../.go_workspace/src/${REPO_PATH}
     - sh tools/combine-coverage.sh:
         pwd: ../.go_workspace/src/${REPO_PATH}
