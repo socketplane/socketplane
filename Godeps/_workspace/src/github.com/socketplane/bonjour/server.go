@@ -39,6 +39,8 @@ var (
 		IP:   mdnsGroupIPv6,
 		Port: 5353,
 	}
+
+	serverCache = make(map[string]*server)
 )
 
 // Register a service by given arguments. This call will take the system's hostname
@@ -122,13 +124,22 @@ func Register(instance, service, domain string, port int, text []string, iface *
 		}
 	}
 
-	s, err := newServer(iface)
-	if err != nil {
-		return nil, err
+	ifaceName := ""
+	if iface != nil {
+		ifaceName = iface.Name
+	}
+	s, ok := serverCache[ifaceName]
+	if !ok {
+		var err error
+		s, err = newServer(iface)
+		if err != nil {
+			return nil, err
+		}
+		serverCache[ifaceName] = s
+		go s.mainloop()
 	}
 
 	s.service = entry
-	go s.mainloop()
 	go s.probe()
 
 	return s.shutdownCh, nil
