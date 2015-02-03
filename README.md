@@ -152,47 +152,7 @@ The Socketplane agent runs in its own container and you might find the following
 
 ## Hacking
 
-Hacking uses the standard GitHub workflow which is made a lot easier by using [`hub`](https://hub.github.com/)
-
-1. Clone this repository
-
-        git clone git@github.com:socketplane/socketplane
-
-2. Create a fork
-
-        hub fork
-
-3. Create a branch for your work
-
-        # For bugs
-        git checkout -b bug/42
-        # For long-lived feature branches
-        git checkout -b feature/something-cool
-
-4. Make your changes and commit
-
-        git add --all
-        git commit -s
-
-5. Push your changes to your GitHub fork
-
-        git push <github-user> <branch-name>
-
-6. Raise a Pull Request
-
-        git pull-request
-
-If you need to make changes to your pull request in response to commets etc...
-
-7. Checkout your working branch
-
-        git checkout <branch-name>
-
-8. Make changes and then commit
-
-        git add --all
-        git commit --amend
-        git push --force
+See [HACKING.md](HACKING.md)
 
 ## Contact us
 
