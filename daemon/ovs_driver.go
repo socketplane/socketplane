@@ -289,7 +289,7 @@ func UpdatePortContext(ovs *libovsdb.OvsdbClient, portName string, key string, c
 	return nil
 }
 
-func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string, tag uint) {
+func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName string, tag uint) error {
 	namedPortUuid := "port"
 	namedIntfUuid := "intf"
 
@@ -339,14 +339,18 @@ func AddInternalPort(ovs *libovsdb.OvsdbClient, bridgeName string, portName stri
 	reply, _ := ovs.Transact("Open_vSwitch", operations...)
 	if len(reply) < len(operations) {
 		log.Error("Number of Replies should be atleast equal to number of Operations")
+		return errors.New("Number of Replies should be atleast equal to number of Operations")
 	}
 	for i, o := range reply {
 		if o.Error != "" && i < len(operations) {
-			log.Errorf("Transaction Failed due to an error : %v details: %v in %v", o.Error, o.Details, operations[i])
+			msg := fmt.Sprintf("Transaction Failed due to an error : %v details: %v in %v", o.Error, o.Details, operations[i])
+			return errors.New(msg)
 		} else if o.Error != "" {
-			log.Errorf("Transaction Failed due to an error : %v", o.Error)
+			msg := fmt.Sprintf("Transaction Failed due to an error : %v", o.Error)
+			return errors.New(msg)
 		}
 	}
+	return nil
 }
 
 func populateCache(updates libovsdb.TableUpdates) {
