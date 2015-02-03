@@ -1,11 +1,11 @@
-.PHONY: build test test-all test-local test-all-local
+.PHONY: build coverage test test-all test-local test-all-local
 
 build:
 	docker build -t socketplane/socketplane .
 
 coverage:
-	gover
-	goveralls -coverprofile=gover.coverprofile -service=$(CI_SERVICE) -repotoken=$(COVERALLS_TOKEN)
+	sh tools/combine-coverage.sh
+	goveralls -coverprofile=socketplane.coverprofile -service=$(CI_SERVICE) -repotoken=$(COVERALLS_TOKEN)
 
 test:
 	fig up -d
@@ -18,11 +18,11 @@ test-all:
 	fig stop
 
 test-local:
-	go test -covermode=count -test.short -coverprofile=daemon.coverprofile -coverpkg=./... ./daemon
-	go test -covermode=count -test.short -coverprofile=datastore.coverprofile -coverpkg=./... ./ipam
-	go test -covermode=count -test.short -coverprofile=socketplane.coverprofile
+	go test -covermode=count -test.short -coverprofile=daemon.cover.out -coverpkg=./... ./daemon
+	go test -covermode=count -test.short -coverprofile=datastore.cover.out -coverpkg=./... ./ipam
+	go test -covermode=count -test.short -coverprofile=socketplane.cover.out
 
 test-all-local:
-	go test -covermode=count -coverprofile=daemon.coverprofile -coverpkg=./... ./daemon
-	go test -covermode=count -coverprofile=datastore.coverprofile -coverpkg=./... ./ipam
-	go test -covermode=count -coverprofile=socketplane.coverprofile
+	go test -covermode=count -coverprofile=daemon.cover.out -coverpkg=./... ./daemon
+	go test -covermode=count -coverprofile=datastore.cover.out -coverpkg=./... ./ipam
+	go test -covermode=count -coverprofile=socketplane.cover.out

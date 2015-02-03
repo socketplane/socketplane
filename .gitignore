@@ -29,6 +29,7 @@ _testmain.go
 *.iml
 
 # Project-Specific
+*.cover.out
 *.coverprofile
 
 #Vagrant
