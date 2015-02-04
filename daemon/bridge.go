@@ -248,9 +248,11 @@ func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, 
 	if err = InterfaceDown(portName); err != nil {
 		return
 	}
-	// TODO : Find a way to change the interface name to defaultDevice (eth0).
-	// Currently using the Randomly created OVS port as is.
-	// refer to veth.go where one end of the veth pair is renamed to eth0
+
+	/* TODO : Find a way to change the interface name to defaultDevice (eth0).
+	   Currently using the Randomly created OVS port as is.
+	   refer to veth.go where one end of the veth pair is renamed to eth0
+	*/
 	if err = ChangeInterfaceName(portName, portName); err != nil {
 		return
 	}

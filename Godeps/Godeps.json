@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.3.2",
 	"Packages": [
 		"./..."
 	],
@@ -39,11 +39,6 @@
 			"ImportPath": "github.com/codegangsta/cli",
 			"Comment": "1.2.0-30-g229729f",
 			"Rev": "229729fae6f51f993fa7cc957beca960821f988a"
-		},
-		{
-			"ImportPath": "github.com/docker/libcontainer/netlink",
-			"Comment": "v1.4.0-105-ge599843",
-			"Rev": "e59984353acde7207aa1115e261847bf4ddd9a8f"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -189,7 +184,11 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "80a80badbda02c350deb690b00fe024555d2d088"
+			"Rev": "10b7e3a40ad071d27981973a05f97f9931bab048"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "e14a2d4e90ae568a5a78b248da5579f289e25925"
 		},
 		{
 			"ImportPath": "golang.org/x/net/internal/iana",

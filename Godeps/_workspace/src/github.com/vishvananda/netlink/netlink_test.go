@@ -1,7 +1,7 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netns"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netns"
 	"log"
 	"os"
 	"runtime"
