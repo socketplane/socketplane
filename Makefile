@@ -9,12 +9,12 @@ coverage:
 
 test:
 	fig up -d
-	docker run --privileged=true --net=host --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-local	
+	docker run --cap-add=NET_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-local	
 	fig stop
 
 test-all:
 	fig up -d
-	docker run --privileged=true --net=host --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-all-local
+	docker run --cap-add=NET_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-all-local
 	fig stop
 
 test-local:
