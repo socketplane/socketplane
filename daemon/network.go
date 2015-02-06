@@ -26,8 +26,8 @@ type Network struct {
 
 func GetNetworks() ([]Network, error) {
 	netByteArray, _, ok := ecc.GetAll(networkStore)
+	networks := make([]Network, 0)
 	if ok {
-		var networks []Network
 		for _, byteArray := range netByteArray {
 			network := Network{}
 			err := json.Unmarshal(byteArray, &network)
@@ -36,9 +36,8 @@ func GetNetworks() ([]Network, error) {
 			}
 			networks = append(networks, network)
 		}
-		return networks, nil
 	}
-	return nil, errors.New("Network unavailable")
+	return networks, nil
 }
 
 func GetNetwork(id string) (*Network, error) {
@@ -130,11 +129,12 @@ func DeleteNetwork(id string) error {
 		return err
 	}
 	eccerror := ecc.Delete(networkStore, id)
-	if eccerror == ecc.OK {
-		releaseVlan(network.Vlan)
-		return nil
+	if eccerror != ecc.OK {
+		return errors.New("Error deleting network")
 	}
-	return errors.New("Error deleting network")
+	releaseVlan(network.Vlan)
+	deletePort(ovs, defaultBridgeName, id)
+	return nil
 }
 
 func CreateDefaultNetwork() (*Network, error) {
