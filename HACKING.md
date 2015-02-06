@@ -7,7 +7,7 @@ How to contribute to SocketPlane
 
 - [Golang](http://golang.org/doc/code.html)
 - [Docker](https://docs.docker.com/installation/#installation)
-- [Fig](http://www.fig.sh/install.html)
+- [Docker Compose](http://www.fig.sh/install.html)
 
 The system running Docker must have the `openvswitch` kernel module must be loaded for the test suite to be run. You can load it using `modprobe openvswitch`
 

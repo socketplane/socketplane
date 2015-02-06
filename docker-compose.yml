@@ -1,7 +1,5 @@
 ovs:
  image: davetucker/docker-ovs:2.3.0
- net: "host"
- ports:
-  - "6640:6640"
  command: "/usr/bin/supervisord -n"
- privileged: true
+ cap_add: 
+   - NET_ADMIN
