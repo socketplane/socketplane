@@ -10,7 +10,6 @@ import (
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netlink"
 	"github.com/socketplane/socketplane/datastore"
 )
 
@@ -37,9 +36,9 @@ func NewDaemon() *Daemon {
 }
 
 const (
-	ClusterBind  = iota
-	ClusterJoin  = iota
-	ClusterLeave = iota
+	ClusterBind = iota
+	ClusterJoin
+	ClusterLeave
 )
 
 type ClusterContext struct {
@@ -140,52 +139,15 @@ func ClusterRPCHandler(d *Daemon) {
 		switch context.Action {
 		case ClusterBind:
 			bindInterface := context.Param
-			if bindInterface == d.clusterListener {
-				log.Debug("Bind Interface is the same as currently bound interface")
-				continue
-			}
-			once := true
-			if d.clusterListener != "" {
-				log.Debug("Cluster is already bound on another interface. Leaving...")
-				once = false
-				datastore.Leave()
-				time.Sleep(time.Second * 5)
-			}
-			log.Debugf("Setting new cluster listener to %s", bindInterface)
-			d.clusterListener = bindInterface
-			datastore.Init(d.clusterListener, d.bootstrapNode)
-
-			if !d.bootstrapNode && once {
-				d.serialChan <- true
+			err := clusterBindRPC(d, bindInterface)
+			if err != nil {
+				break
 			}
 		case ClusterJoin:
 			joinAddress := context.Param
-			routes, err := netlink.RouteGet(net.ParseIP(joinAddress))
+			err := clusterJoinRPC(d, joinAddress)
 			if err != nil {
-				log.Error(err.Error())
 				break
-			}
-			link, err := netlink.LinkByIndex(routes[0].LinkIndex)
-			if err != nil {
-				log.Error(err.Error())
-				break
-			}
-			bindInterface := link.Attrs().Name
-			if bindInterface == "" {
-				log.Error("Could not get interface name to bind to")
-				break
-			}
-			if d.clusterListener != bindInterface {
-				log.Debug("Cluster is already bound on another interface. Leaving...")
-				datastore.Leave()
-				time.Sleep(time.Second * 10)
-				log.Debugf("Setting new cluster listener to %s", bindInterface)
-				d.bootstrapNode = false
-				d.clusterListener = bindInterface
-				datastore.Init(d.clusterListener, d.bootstrapNode)
-			}
-			if err = datastore.Join(joinAddress); err != nil {
-				log.Errorf("Could not join cluster %s. %s", joinAddress, err.Error())
 			}
 		case ClusterLeave:
 			if err := datastore.Leave(); err != nil {
@@ -194,6 +156,48 @@ func ClusterRPCHandler(d *Daemon) {
 			}
 		}
 	}
+}
+
+func clusterBindRPC(d *Daemon, bindInterface string) error {
+	if bindInterface == d.clusterListener {
+		log.Debug("Bind Interface is the same as currently bound interface")
+		return errors.New("Bind Interface is the same as currently bound interface")
+	}
+	once := true
+	if d.clusterListener != "" {
+		log.Debug("Cluster is already bound on another interface. Leaving...")
+		once = false
+		datastore.Leave()
+		time.Sleep(time.Second * 5)
+	}
+	log.Debugf("Setting new cluster listener to %s", bindInterface)
+	d.clusterListener = bindInterface
+	datastore.Init(d.clusterListener, d.bootstrapNode)
+
+	if !d.bootstrapNode && once {
+		d.serialChan <- true
+	}
+	return nil
+}
+
+func clusterJoinRPC(d *Daemon, joinAddress string) error {
+	bindInterface, err := GetIfaceForRoute(joinAddress)
+	if err != nil {
+		return err
+	}
+	if d.clusterListener != bindInterface {
+		log.Debug("Cluster is already bound on another interface. Leaving...")
+		datastore.Leave()
+		time.Sleep(time.Second * 10)
+		log.Debugf("Setting new cluster listener to %s", bindInterface)
+		d.bootstrapNode = false
+		d.clusterListener = bindInterface
+		datastore.Init(d.clusterListener, d.bootstrapNode)
+	}
+	if err = datastore.Join(joinAddress); err != nil {
+		log.Errorf("Could not join cluster %s. %s", joinAddress, err.Error())
+	}
+	return nil
 }
 
 func (d *Daemon) identifyInterfaceToBind() *net.Interface {
