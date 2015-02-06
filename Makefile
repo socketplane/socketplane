@@ -8,14 +8,14 @@ coverage:
 	goveralls -coverprofile=socketplane.coverprofile -service=$(CI_SERVICE) -repotoken=$(COVERALLS_TOKEN)
 
 test:
-	fig up -d
-	docker run --cap-add=NET_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-local	
-	fig stop
+	docker-compose up -d
+	docker run --cap-add=NET_ADMIN --cap-add SYS_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-local	
+	docker-compose stop
 
 test-all:
-	fig up -d
-	docker run --cap-add=NET_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-all-local
-	fig stop
+	docker-compose up -d
+	docker run --cap-add=NET_ADMIN --cap-add SYS_ADMIN --net=container:socketplane_ovs_1 --rm -v $(shell pwd):/go/src/github.com/socketplane/socketplane -w /go/src/github.com/socketplane/socketplane davetucker/golang-ci:1.3 make test-all-local
+	docker-compose stop
 
 test-local:
 	go test -covermode=count -test.short -coverprofile=daemon.cover.out -coverpkg=./... ./daemon

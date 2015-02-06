@@ -4,44 +4,27 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
 	"net"
 
-	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/docker/libcontainer/netlink"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netlink"
 )
 
 var (
-	networkGetRoutesFct = netlink.NetworkGetRoutes
-	ErrNoDefaultRoute   = errors.New("no default route")
-)
-
-var (
+	ErrNoDefaultRoute                 = errors.New("no default route")
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")
 	ErrNetworkOverlaps                = errors.New("requested network overlaps with existing network")
 )
 
-func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
-	if len(nameservers) > 0 {
-		for _, ns := range nameservers {
-			_, nsNetwork, err := net.ParseCIDR(ns)
-			if err != nil {
-				return err
-			}
-			if NetworkOverlaps(toCheck, nsNetwork) {
-				return ErrNetworkOverlapsWithNameservers
-			}
-		}
-	}
-	return nil
-}
-
 func CheckRouteOverlaps(toCheck *net.IPNet) error {
-	networks, err := networkGetRoutesFct()
+	networks, err := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if err != nil {
 		return err
 	}
 
 	for _, network := range networks {
-		if network.IPNet != nil && NetworkOverlaps(toCheck, network.IPNet) {
+		if network.Dst != nil && NetworkOverlaps(toCheck, network.Dst) {
 			return ErrNetworkOverlaps
 		}
 	}
@@ -84,133 +67,146 @@ func NetworkSize(mask net.IPMask) int32 {
 
 // Return the IPv4 address of a network interface
 func GetIfaceAddr(name string) (net.Addr, error) {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return nil, err
 	}
-	addrs, err := iface.Addrs()
+
+	addrs, err := netlink.AddrList(iface, netlink.FAMILY_V4)
 	if err != nil {
 		return nil, err
 	}
-	var addrs4 []net.Addr
-	for _, addr := range addrs {
-		ip := (addr.(*net.IPNet)).IP
-		if ip4 := ip.To4(); len(ip4) == net.IPv4len {
-			addrs4 = append(addrs4, addr)
-		}
-	}
-	switch {
-	case len(addrs4) == 0:
+
+	if len(addrs) == 0 {
 		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
-	case len(addrs4) > 1:
-		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
-			name, (addrs4[0].(*net.IPNet)).IP)
 	}
-	return addrs4[0], nil
+
+	if len(addrs) > 1 {
+		log.Info("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n", name, addrs[0].IP)
+	}
+
+	return net.Addr(addrs[0]), nil
 }
 
-func GetDefaultRouteIface() (*net.Interface, error) {
-	rs, err := networkGetRoutesFct()
+func GetDefaultRouteIface() (int, error) {
+	defaultRt := net.ParseIP("0.0.0.0")
+	rs, err := netlink.RouteGet(defaultRt)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get routes: %v", err)
+		return -1, fmt.Errorf("unable to get default route: %v", err)
 	}
-	for _, r := range rs {
-		if r.Default {
-			return r.Iface, nil
-		}
+	if len(rs) > 0 {
+		return rs[0].LinkIndex, nil
 	}
-	return nil, ErrNoDefaultRoute
+	return -1, ErrNoDefaultRoute
 }
 
 func InterfaceUp(name string) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkLinkUp(iface)
+	return netlink.LinkSetUp(iface)
 }
 
 func InterfaceDown(name string) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkLinkDown(iface)
+	return netlink.LinkSetDown(iface)
 }
 
 func ChangeInterfaceName(old, newName string) error {
-	iface, err := net.InterfaceByName(old)
+	iface, err := netlink.LinkByName(old)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkChangeName(iface, newName)
+	return netlink.LinkSetName(iface, newName)
 }
-
-/* ToDo: We don't use this today, is it still needed?
-func CreateVethPair(name1, name2 string) error {
-	return netlink.NetworkCreateVethPair(name1, name2, 0)
-}
-*/
 
 func SetInterfaceInNamespacePid(name string, nsPid int) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetNsPid(iface, nsPid)
+	return netlink.LinkSetNsPid(iface, nsPid)
 }
 
 func SetInterfaceInNamespaceFd(name string, fd uintptr) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetNsFd(iface, int(fd))
-}
-
-func SetInterfaceMaster(name, master string) error {
-	iface, err := net.InterfaceByName(name)
-	if err != nil {
-		return err
-	}
-	masterIface, err := net.InterfaceByName(master)
-	if err != nil {
-		return err
-	}
-	return netlink.AddToBridge(iface, masterIface)
+	return netlink.LinkSetNsFd(iface, int(fd))
 }
 
 func SetDefaultGateway(ip, ifaceName string) error {
-	return netlink.AddDefaultGw(ip, ifaceName)
+	iface, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return err
+	}
+	gw := net.ParseIP(ip)
+	if gw == nil {
+		return errors.New("Invalid gateway address")
+	}
+
+	_, dst, err := net.ParseCIDR("0.0.0.0/0")
+	if err != nil {
+		return err
+	}
+	defaultRoute := &netlink.Route{
+		LinkIndex: iface.Attrs().Index,
+		Dst:       dst,
+		Gw:        gw,
+	}
+	return netlink.RouteAdd(defaultRoute)
 }
 
 func SetInterfaceMac(name string, macaddr string) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetMacAddress(iface, macaddr)
+	hwaddr, err := net.ParseMAC(macaddr)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkSetHardwareAddr(iface, hwaddr)
 }
 
 func SetInterfaceIp(name string, rawIp string) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	ip, ipNet, err := net.ParseCIDR(rawIp)
+
+	ipNet, err := netlink.ParseIPNet(rawIp)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkLinkAddIp(iface, ip, ipNet)
+	addr := &netlink.Addr{ipNet, ""}
+	return netlink.AddrAdd(iface, addr)
 }
 
 func SetMtu(name string, mtu int) error {
-	iface, err := net.InterfaceByName(name)
+	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetMTU(iface, mtu)
+	return netlink.LinkSetMTU(iface, mtu)
 }
 
-func GetIfaceForRoute(address string) {
+func GetIfaceForRoute(address string) (int, error) {
+	addr := net.ParseIP(address)
+	if addr == nil {
+		return -1, errors.New("invalid address")
+	}
+	routes, err := netlink.RouteGet(addr)
+	if err != nil {
+		return -1, err
+	}
+	if len(routes) > 0 {
+		return routes[0].LinkIndex, nil
+	}
+	return -1, errors.New("no route for address")
 }

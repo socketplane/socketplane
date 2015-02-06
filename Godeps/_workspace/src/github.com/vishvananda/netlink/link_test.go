@@ -1,9 +1,11 @@
 package netlink
 
 import (
+	"bytes"
+	"net"
 	"testing"
 
-	"github.com/vishvananda/netns"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netns"
 )
 
 const testTxQLen uint32 = 100
@@ -397,5 +399,63 @@ func TestLinkByIndex(t *testing.T) {
 	_, err = LinkByIndex(dummy.Attrs().Index)
 	if err == nil {
 		t.Fatalf("LinkByIndex(%v) found deleted link", err)
+	}
+}
+
+func TestLinkSet(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetName(link, "bar")
+	if err != nil {
+		t.Fatalf("Could not change interface name: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatalf("Interface name not changed: %v", err)
+	}
+
+	err = LinkSetMTU(link, 1400)
+	if err != nil {
+		t.Fatalf("Could not set MTU: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().MTU != 1400 {
+		t.Fatal("MTU not changed!")
+	}
+
+	addr, err := net.ParseMAC("00:12:34:56:78:AB")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetHardwareAddr(link, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
+		t.Fatalf("hardware address not changed!")
 	}
 }
