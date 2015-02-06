@@ -196,17 +196,21 @@ func SetMtu(name string, mtu int) error {
 	return netlink.LinkSetMTU(iface, mtu)
 }
 
-func GetIfaceForRoute(address string) (int, error) {
+func GetIfaceForRoute(address string) (string, error) {
 	addr := net.ParseIP(address)
 	if addr == nil {
-		return -1, errors.New("invalid address")
+		return "", errors.New("invalid address")
 	}
 	routes, err := netlink.RouteGet(addr)
 	if err != nil {
-		return -1, err
+		return "", err
 	}
-	if len(routes) > 0 {
-		return routes[0].LinkIndex, nil
+	if len(routes) <= 0 {
+		return "", errors.New("no route to destination")
 	}
-	return -1, errors.New("no route for address")
+	link, err := netlink.LinkByIndex(routes[0].LinkIndex)
+	if err != nil {
+		return "", err
+	}
+	return link.Attrs().Name, nil
 }
