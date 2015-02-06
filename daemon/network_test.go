@@ -2,12 +2,11 @@ package daemon
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"testing"
 
-	"github.com/socketplane/socketplane/datastore"
+	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 )
 
 var subnetArray []*net.IPNet
@@ -18,10 +17,6 @@ func TestInit(t *testing.T) {
 		log.Printf(msg)
 		t.Skip(msg)
 	}
-	err := datastore.Init("eth0", true)
-	if err != nil {
-		t.Error("Error starting Consul ", err)
-	}
 	_, ipNet1, _ := net.ParseCIDR("192.168.1.0/24")
 	_, ipNet2, _ := net.ParseCIDR("192.168.2.0/24")
 	_, ipNet3, _ := net.ParseCIDR("192.168.3.0/24")
@@ -29,6 +24,13 @@ func TestInit(t *testing.T) {
 	_, ipNet5, _ := net.ParseCIDR("192.168.5.0/24")
 
 	subnetArray = []*net.IPNet{ipNet1, ipNet2, ipNet3, ipNet4, ipNet5}
+}
+
+func TestGetEmptyNetworks(t *testing.T) {
+	networks, _ := GetNetworks()
+	if networks == nil {
+		t.Error("GetNetworks must return an empty array when networks are not created ")
+	}
 }
 
 func TestNetworkCreate(t *testing.T) {
@@ -46,13 +48,20 @@ func TestNetworkCreate(t *testing.T) {
 	}
 }
 
+func TestGetNetworks(t *testing.T) {
+	networks, _ := GetNetworks()
+	if networks == nil || len(networks) < len(subnetArray) {
+		t.Error("GetNetworks must return an empty array when networks are not created ")
+	}
+}
+
 func TestGetNetwork(t *testing.T) {
 	if os.Getuid() != 0 {
 		msg := "Skipped test because it requires root privileges."
 		log.Printf(msg)
 		t.Skip(msg)
 	}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(subnetArray); i++ {
 		network, _ := GetNetwork(fmt.Sprintf("Network-%d", i+1))
 		if network == nil {
 			t.Error("Error GetNetwork")
@@ -69,11 +78,10 @@ func TestCleanup(t *testing.T) {
 		log.Printf(msg)
 		t.Skip(msg)
 	}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(subnetArray); i++ {
 		err := DeleteNetwork(fmt.Sprintf("Network-%d", i+1))
 		if err != nil {
 			t.Error("Error Deleting Network", err)
 		}
 	}
-	datastore.Leave()
 }
