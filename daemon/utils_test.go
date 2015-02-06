@@ -304,7 +304,7 @@ func TestGetIfaceForRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if i <= 0 {
-		t.Fatal("ifindex should be > 0")
+	if i != "lo" {
+		t.Fatal("return value not testIface")
 	}
 }
