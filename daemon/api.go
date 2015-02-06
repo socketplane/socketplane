@@ -164,7 +164,7 @@ func createConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 
 	result := <-context.Result
 
-	location := fmt.Sprintf("%S/%s", r.URL.String(), cfg.ContainerID)
+	location := fmt.Sprintf("%s/%s", r.URL.String(), cfg.ContainerID)
 	data, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Location", location)
