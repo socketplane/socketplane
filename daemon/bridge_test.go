@@ -1,6 +1,10 @@
 package daemon
 
-import "testing"
+import (
+	"bytes"
+	"net"
+	"testing"
+)
 
 func TestGetAvailableGwAddress(t *testing.T) {
 	addr, err := GetAvailableGwAddress("")
@@ -73,5 +77,33 @@ func TestDeletePeer(t *testing.T) {
 
 	if exists {
 		t.Fatal("Port has not been deleted")
+	}
+}
+
+func TestGenerateRandomName(t *testing.T) {
+	results := make(map[string]bool)
+	for i := 0; i <= 100; i++ {
+		result, err := GenerateRandomName("foo", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if results[result] != false {
+			t.Fatal("generated name not unique")
+		}
+		results[result] = true
+	}
+}
+
+func TestGenerateMacAddress(t *testing.T) {
+	ip := net.ParseIP("1.1.1.1")
+	mac := generateMacAddr(ip)
+	if mac[0] != 0x02 {
+		t.Fatal("first byte should be 0x02")
+	}
+	if mac[1] != 0x42 {
+		t.Fatal("second byte should be 0x42")
+	}
+	if !bytes.Equal(mac[2:], ip.To4()) {
+		t.Fatal("remaning bytes should be ipv4 address")
 	}
 }
