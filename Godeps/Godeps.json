@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.3.2",
+	"GoVersion": "go1.4.1",
 	"Packages": [
 		"./..."
 	],
@@ -189,10 +189,6 @@
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "10b7e3a40ad071d27981973a05f97f9931bab048"
-		},
-		{
-			"ImportPath": "github.com/vishvananda/netns",
-			"Rev": "e14a2d4e90ae568a5a78b248da5579f289e25925"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",
