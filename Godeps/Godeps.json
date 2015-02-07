@@ -164,6 +164,10 @@
 			"Rev": "44cb4788b2ec3c3d158dd3d1b50aba7d66f4b59a"
 		},
 		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "7e4366cfab2f2b44fcb493bee93a156a763d58b6"
+		},
+		{
 			"ImportPath": "github.com/socketplane/bonjour",
 			"Comment": "v0.1.2-1-g09338ea",
 			"Rev": "09338eae6f6de293bb09f6e424fe5e91267d82af"
@@ -185,6 +189,10 @@
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "10b7e3a40ad071d27981973a05f97f9931bab048"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "e14a2d4e90ae568a5a78b248da5579f289e25925"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",

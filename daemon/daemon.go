@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -51,6 +52,10 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		log.SetLevel(log.DebugLevel)
 	}
 	d.bootstrapNode = ctx.Bool("bootstrap")
+
+	if err := os.Mkdir("/var/run/netns", 0777); err != nil {
+		fmt.Println("mkdir /var/run/netns failed", err)
+	}
 
 	go ServeAPI(d)
 	go func() {

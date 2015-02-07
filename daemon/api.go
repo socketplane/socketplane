@@ -6,9 +6,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/samalba/dockerclient"
 )
 
 const API_VERSION string = "/v0.1"
@@ -32,6 +36,39 @@ type Connection struct {
 	Network           string        `json:"network"`
 	OvsPortID         string        `json:"ovs_port_id"`
 	ConnectionDetails OvsConnection `json:"connection_details"`
+}
+
+type adapterRequest struct {
+	PowerstripProtocolVersion int
+	Type                      string
+	ClientRequest             struct {
+		Method  string
+		Request string
+		Body    string
+	}
+	ServerResponse struct {
+		Body        string
+		Code        int
+		ContentType string
+	}
+}
+
+type adapterPreResponse struct {
+	PowerstripProtocolVersion int
+	ModifiedClientRequest     struct {
+		Method  string
+		Request string
+		Body    string
+	}
+}
+
+type adapterPostResponse struct {
+	PowerstripProtocolVersion int
+	ModifiedServerResponse    struct {
+		Body        string
+		Code        int
+		ContentType string
+	}
 }
 
 type apiError struct {
@@ -79,6 +116,7 @@ func createRouter(d *Daemon) *mux.Router {
 			"/cluster/bind":  clusterBind,
 			"/cluster/join":  clusterJoin,
 			"/cluster/leave": clusterLeave,
+			"/adapter":       psAdapter,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
@@ -90,10 +128,105 @@ func createRouter(d *Daemon) *mux.Router {
 		for route, fct := range routes {
 			handler := appHandler{d, fct}
 			r.Path(API_VERSION + route).Methods(method).Handler(handler)
+			if route == "/adapter" {
+				r.Path(route).Methods(method).Handler(handler)
+			}
 		}
 	}
 
 	return r
+}
+
+func psAdapterPreHook(d *Daemon, reqParams adapterRequest) *adapterPreResponse {
+	if reqParams.ClientRequest.Body != "" {
+		jsonBody := &dockerclient.ContainerConfig{}
+		err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &jsonBody)
+		if err != nil {
+			fmt.Println("Body JSON unmarsall failed", err)
+		}
+
+		jsonBody.HostConfig.NetworkMode = "none"
+
+		preResp := &adapterPreResponse{}
+		preResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+		preResp.ModifiedClientRequest.Method = reqParams.ClientRequest.Method
+		preResp.ModifiedClientRequest.Request = reqParams.ClientRequest.Request
+
+		body, _ := json.Marshal(jsonBody)
+		preResp.ModifiedClientRequest.Body = string(body)
+
+		return preResp
+	}
+	return nil
+}
+
+func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse {
+	if reqParams.ClientRequest.Request != "" {
+		// start api looks like this /<version>/containers/<cid>/start
+		s := regexp.MustCompile("/").Split(reqParams.ClientRequest.Request, 5)
+		cid := s[3]
+
+		docker, _ := dockerclient.NewDockerClient(
+			"unix:///var/run/docker.sock", nil)
+		info, err := docker.InspectContainer(cid)
+		if err != nil {
+			fmt.Println("InspectContainer failed", err)
+		}
+
+		cfg := &Connection{}
+
+		cfg.ContainerID = string(cid)
+		cfg.ContainerName = info.Name
+		cfg.ContainerPID = strconv.Itoa(info.State.Pid)
+		cfg.Network = DefaultNetworkName
+		for _, env := range info.Config.Env {
+			val := regexp.MustCompile("=").Split(env, 3)
+			if val[0] == "SP_NETWORK" {
+				cfg.Network = strings.Trim(val[1], " ")
+			}
+		}
+
+		context := &ConnectionContext{
+			ConnectionAdd,
+			cfg,
+			make(chan *Connection),
+		}
+		d.cC <- context
+
+		<-context.Result
+
+		postResp := &adapterPostResponse{}
+		postResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+		postResp.ModifiedServerResponse.ContentType = "application/json"
+		postResp.ModifiedServerResponse.Body = reqParams.ServerResponse.Body
+		postResp.ModifiedServerResponse.Code = reqParams.ServerResponse.Code
+
+		return postResp
+	}
+
+	return nil
+}
+
+func psAdapter(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
+	var reqParams adapterRequest
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&reqParams)
+	if err != nil {
+		fmt.Println("Error decodeing JSON", err)
+		//return &apiError{http.StatusInternalServerError, err.Error()}
+	}
+
+	var data []byte
+	switch reqParams.Type {
+	case "pre-hook":
+		data, _ = json.Marshal(psAdapterPreHook(d, reqParams))
+	case "post-hook":
+		data, _ = json.Marshal(psAdapterPostHook(d, reqParams))
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+	return nil
 }
 
 func getConfiguration(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {

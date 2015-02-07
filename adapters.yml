@@ -1,0 +1,8 @@
+version: 1
+endpoints:
+  "POST /*/containers/create":
+    pre: [socketplane]
+  "POST /*/containers/*/start":
+    post: [socketplane]
+adapters:
+  socketplane: http://localhost:6675/adapter
