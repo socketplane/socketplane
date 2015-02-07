@@ -46,6 +46,10 @@ if [ ! -f /opt/socketplane/functions.sh ]; then
     $curl /opt/socketplane/functions.sh https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/functions.sh
 fi
 
+if [ ! -f /etc/socketplane/adapters.yml ]; then
+    $curl /etc/socketplane/adapters.yml  https://raw.githubusercontent.com/socketplane/socketplane/master/adapters.yml
+fi
+
 chmod +x /opt/socketplane/socketplane
 
 if [ ! -f /usr/bin/socketplane ]; then

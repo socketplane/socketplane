@@ -21,7 +21,7 @@ COMMANDS:
     help
             Help and usage
 
-    install [unattended]
+    install [unattended] [nopowerstrip]
             Install SocketPlane (installs docker and openvswitch)
 
     uninstall
@@ -86,28 +86,6 @@ EOF
 
 basedir=$(dirname $(readlink -m $0))
 . $basedir/functions.sh
-
-# Utility function to attach a port to a network namespace
-attach()    # OVS Port ID
-            # IP Address
-            # Subnet
-            # MAC Address
-            # Gateway IP
-            # Namespace PID
-{
-    # see: https://docs.docker.com/articles/networking/
-
-    [ ! -d /var/run/netns ] && mkdir -p /var/run/netns
-    [ -f /var/run/netns/$6 ] && rm -f /var/run/netns/$6
-    ln -s /proc/$6/ns/net /var/run/netns/$6
-
-    ip link set dev $1 netns $6
-    ip netns exec $6 ip link set dev $1 address $4
-    ip netns exec $6 ip link set dev $1 up
-    ip netns exec $6 ip addr add $2$3 dev $1
-    ip netns exec $6 ip route add default via $5
-
-}
 
 get_status() {
     OS="NOT_LINUX"
@@ -277,7 +255,30 @@ start_socketplane() {
 
     flags="--iface=auto"
 
-    if [ "$1" = "unattended" ]; then
+    bstrap=manual
+    ps=yes
+
+    while true; do
+	args=$@
+	if [ "$args" = "" ]; then
+	    break
+	fi
+
+	case "$1" in
+	    unattended )
+		bstrap=auto
+		;;
+	    nopowerstrip )
+		ps=no
+		;;
+	    *)
+		log_fatal "Unknown option $1"
+	        ;;
+	esac
+	shift
+    done
+
+    if [ "$bstrap" = "auto" ]; then
         [ -z $BOOTSTRAP ] && log_fatal "BOOTSTRAP not set" && exit 1
 
         if [ "$BOOTSTRAP" = "true" ] ; then
@@ -305,7 +306,10 @@ start_socketplane() {
         flags="$flags --debug=true"
     fi
 
-    cid=$(docker run -itd --privileged=true --net=host socketplane/socketplane socketplane $flags)
+    cid=$(docker run --name socketplane -itd --privileged=true \
+	-v /var/run/docker.sock:/var/run/docker.sock \
+	-v /usr/bin/docker:/usr/bin/docker -v /proc:/hostproc -e PROCFS=/hostproc \
+	--net=host socketplane/socketplane socketplane $flags)
 
     if [ -n "$cid" ]; then
         log_info "A SocketPlane container was started" | indent
@@ -316,6 +320,17 @@ start_socketplane() {
 
     mkdir -p /var/run/socketplane
     echo $cid > /var/run/socketplane/cid
+
+    if [ "$ps" = "yes" ]; then
+	if [ ! -f /etc/socketplane/adapters.yml ]; then
+	    mkdir -p /etc/socketplane
+	    cp $PWD/adapters.yml /etc/socketplane
+	fi
+
+	pscid=$(docker run -d --name powerstrip -v /var/run/docker.sock:/var/run/docker.sock \
+	    -v /etc/socketplane/adapters.yml:/etc/powerstrip/adapters.yml --net=host  \
+	    clusterhq/powerstrip:v0.0.1)
+    fi
 }
 
 start_socketplane_image() {
@@ -368,6 +383,15 @@ stop_socketplane() {
         log_info "Removing socketplane container: $IMAGE_ID" | indent
         docker rm $IMAGE_ID > /dev/null
     done
+
+    for IMAGE_ID in $(docker ps -a | grep clusterhq | awk '{ print $1; }'); do
+        log_info "Stopping powerstrip container: $IMAGE_ID" | indent
+        docker stop $IMAGE_ID > /dev/null
+        sleep 1
+        log_info "Removing powerstrip container: $IMAGE_ID" | indent
+        docker rm $IMAGE_ID > /dev/null
+    done
+
     log_info "SocketPlane container deleted" | indent
 }
 
@@ -428,8 +452,6 @@ container_run() {
 
     json=$(curl -s -X POST http://localhost:6675/v0.1/connections -d "{ \"container_id\": \"$cid\", \"container_name\": \"$cName\", \"container_pid\": \"$cPid\", \"network\": \"$network\" }")
     result=$(echo $json | sed 's/[,{}]/\n/g' | sed 's/^".*":"\(.*\)"/\1/g' | awk -v RS="" '{ print $7, $8, $9, $10, $11 }')
-
-    attach $result $cPid
 
     if [ "$attach" = "false" ]; then
         echo $cid

@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/socketplane/socketplane",
-	"GoVersion": "go1.3.2",
+	"GoVersion": "go1.4.1",
 	"Packages": [
 		"./..."
 	],
@@ -162,6 +162,10 @@
 			"ImportPath": "github.com/ryanuber/columnize",
 			"Comment": "v2.0.1-6-g44cb478",
 			"Rev": "44cb4788b2ec3c3d158dd3d1b50aba7d66f4b59a"
+		},
+		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "7e4366cfab2f2b44fcb493bee93a156a763d58b6"
 		},
 		{
 			"ImportPath": "github.com/socketplane/bonjour",

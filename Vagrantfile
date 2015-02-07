@@ -15,7 +15,10 @@ export DEBIAN_FRONTEND=noninteractive
 # -qq is pointless, it doesn't work :S
 apt-get update > /dev/null
 echo ====> Installing Packages
-apt-get install -qq -y --no-install-recommends docker.io openvswitch-switch unzip
+apt-get install -qq -y --no-install-recommends openvswitch-switch unzip
+curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
+mkdir -p /etc/socketplane
+ln -s /vagrant/adapters.yml /etc/socketplane/adapters.yml
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin
 wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
