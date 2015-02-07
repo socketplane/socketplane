@@ -79,6 +79,7 @@ func createRouter(d *Daemon) *mux.Router {
 			"/cluster/bind":  clusterBind,
 			"/cluster/join":  clusterJoin,
 			"/cluster/leave": clusterLeave,
+			"/adapter":       psAdapter,
 		},
 		"DELETE": {
 			"/connections/{id:.*}": deleteConnection,
@@ -90,6 +91,9 @@ func createRouter(d *Daemon) *mux.Router {
 		for route, fct := range routes {
 			handler := appHandler{d, fct}
 			r.Path(API_VERSION + route).Methods(method).Handler(handler)
+			if route == "/adapter" {
+				r.Path(route).Methods(method).Handler(handler)
+			}
 		}
 	}
 

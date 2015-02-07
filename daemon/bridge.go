@@ -7,13 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
+	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netns"
 	"github.com/socketplane/socketplane/ipam"
 )
 
@@ -241,9 +245,36 @@ func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, 
 	if err = InterfaceUp(portName); err != nil {
 		return
 	}
-	if err = SetInterfaceInNamespacePid(portName, nspid); err != nil {
+
+	if err = os.Symlink(filepath.Join(os.Getenv("PROCFS"), strconv.Itoa(nspid), "ns/net"),
+		filepath.Join("/var/run/netns", strconv.Itoa(nspid))); err != nil {
 		return
 	}
+
+	// Lock the OS Thread so we don't accidentally switch namespaces
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return
+	}
+	defer origns.Close()
+
+	targetns, err := netns.GetFromName(strconv.Itoa(nspid))
+	if err != nil {
+		return
+	}
+	defer targetns.Close()
+
+	if err = SetInterfaceInNamespaceFd(portName, uintptr(int(targetns))); err != nil {
+		return
+	}
+
+	if err = netns.Set(targetns); err != nil {
+		return
+	}
+	defer netns.Set(origns)
 
 	if err = InterfaceDown(portName); err != nil {
 		return
@@ -257,9 +288,10 @@ func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, 
 		return
 	}
 
-	if err = SetInterfaceIp(portName, ip.String()); err != nil {
+	if err = SetInterfaceIp(portName, ip.String()+subnetPrefix); err != nil {
 		return
 	}
+
 	if err = SetInterfaceMac(portName, generateMacAddr(ip).String()); err != nil {
 		return
 	}
@@ -267,9 +299,11 @@ func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, 
 	if err = InterfaceUp(portName); err != nil {
 		return
 	}
+
 	if err = SetDefaultGateway(bridgeNetwork.Gateway, portName); err != nil {
 		return
 	}
+
 	return ovsConnection, nil
 }
 
