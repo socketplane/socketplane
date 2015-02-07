@@ -322,6 +322,11 @@ start_socketplane() {
     echo $cid > /var/run/socketplane/cid
 
     if [ "$ps" = "yes" ]; then
+	if [ ! -f /etc/socketplane/adapters.yml ]; then
+	    mkdir -p /etc/socketplane
+	    cp $PWD/adapters.yml /etc/socketplane
+	fi
+
 	pscid=$(docker run -d --name powerstrip -v /var/run/docker.sock:/var/run/docker.sock \
 	    -v /etc/socketplane/adapters.yml:/etc/powerstrip/adapters.yml --net=host  \
 	    clusterhq/powerstrip:v0.0.1)
