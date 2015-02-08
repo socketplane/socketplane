@@ -1,5 +1,5 @@
 ovs:
- image: davetucker/docker-ovs:2.3.0
+ image: socketplane/docker-ovs:2.3.0
  command: "/usr/bin/supervisord -n"
  cap_add: 
    - NET_ADMIN
