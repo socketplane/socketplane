@@ -66,7 +66,7 @@ func NetworkSize(mask net.IPMask) int32 {
 }
 
 // Return the IPv4 address of a network interface
-func GetIfaceAddr(name string) (net.Addr, error) {
+func GetIfaceAddr(name string) (*net.IPNet, error) {
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 		log.Info("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n", name, addrs[0].IP)
 	}
 
-	return net.Addr(addrs[0]), nil
+	return addrs[0].IPNet, nil
 }
 
 func GetDefaultRouteIface() (int, error) {
