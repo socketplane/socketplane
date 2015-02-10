@@ -44,7 +44,13 @@ type adapterPostResponse struct {
 	}
 }
 
-func psAdapterPreHook(d *Daemon, reqParams adapterRequest) *adapterPreResponse {
+func psAdapterPreHook(d *Daemon, reqParams adapterRequest) (preResp *adapterPreResponse) {
+	preResp = &adapterPreResponse{}
+	preResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+	preResp.ModifiedClientRequest.Method = reqParams.ClientRequest.Method
+	preResp.ModifiedClientRequest.Request = reqParams.ClientRequest.Request
+	preResp.ModifiedClientRequest.Body = reqParams.ClientRequest.Body
+
 	if reqParams.ClientRequest.Body != "" {
 		jsonBody := &dockerclient.ContainerConfig{}
 		err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &jsonBody)
@@ -54,24 +60,26 @@ func psAdapterPreHook(d *Daemon, reqParams adapterRequest) *adapterPreResponse {
 
 		jsonBody.HostConfig.NetworkMode = "none"
 
-		preResp := &adapterPreResponse{}
-		preResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
-		preResp.ModifiedClientRequest.Method = reqParams.ClientRequest.Method
-		preResp.ModifiedClientRequest.Request = reqParams.ClientRequest.Request
-
 		body, _ := json.Marshal(jsonBody)
 		preResp.ModifiedClientRequest.Body = string(body)
 
-		return preResp
 	}
-	return nil
+
+	return
 }
 
-func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse {
+func psAdapterPostHook(d *Daemon, reqParams adapterRequest) (postResp *adapterPostResponse) {
+	postResp = &adapterPostResponse{}
+	postResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+	postResp.ModifiedServerResponse.ContentType = "application/json"
+	postResp.ModifiedServerResponse.Body = reqParams.ServerResponse.Body
+	postResp.ModifiedServerResponse.Code = reqParams.ServerResponse.Code
+
 	if reqParams.ClientRequest.Method != "POST" &&
 		reqParams.ClientRequest.Method != "DELETE" {
 		fmt.Println("Invalid method: ", reqParams.ClientRequest.Method)
-		return nil
+		postResp.ModifiedServerResponse.Code = 500
+		return
 	}
 
 	if reqParams.ClientRequest.Request != "" {
@@ -89,7 +97,8 @@ func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse
 			info, err := docker.InspectContainer(cid)
 			if err != nil {
 				fmt.Println("InspectContainer failed", err)
-				return nil
+				postResp.ModifiedServerResponse.Code = 404
+				return
 			}
 
 			cfg.ContainerID = string(cid)
@@ -105,11 +114,11 @@ func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse
 
 			op = ConnectionAdd
 		case "DELETE":
-
 			var ok bool
 			if cfg, ok = d.Connections[cid]; !ok {
 				fmt.Println("Couldn't find the connection", cid)
-				return nil
+				postResp.ModifiedServerResponse.Code = 500
+				return
 			}
 
 			op = ConnectionDelete
@@ -124,17 +133,9 @@ func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse
 		d.cC <- context
 
 		<-context.Result
-
-		postResp := &adapterPostResponse{}
-		postResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
-		postResp.ModifiedServerResponse.ContentType = "application/json"
-		postResp.ModifiedServerResponse.Body = reqParams.ServerResponse.Body
-		postResp.ModifiedServerResponse.Code = reqParams.ServerResponse.Code
-
-		return postResp
 	}
 
-	return nil
+	return
 }
 
 func psAdapter(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {
