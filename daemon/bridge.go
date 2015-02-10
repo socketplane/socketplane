@@ -196,6 +196,7 @@ func ConnectionRPCHandler(d *Daemon) {
 		case ConnectionDelete:
 			DeleteConnection(c.Connection.ConnectionDetails)
 			delete(d.Connections, c.Connection.ContainerID)
+			c.Result <- c.Connection
 		}
 	}
 }

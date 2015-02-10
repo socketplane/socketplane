@@ -487,8 +487,6 @@ container_delete() {
     docker rm $@
     curl -s -X DELETE http://localhost:6675/v0.1/connections/$cid
     sleep 1
-    # clean up dangling symlinks
-    find -L /var/run/netns -type l -delete
 }
 
 cluster_bind() {
