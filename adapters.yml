@@ -4,5 +4,7 @@ endpoints:
     pre: [socketplane]
   "POST /*/containers/*/start":
     post: [socketplane]
+  "DELETE /*/containers/*":
+    post: [socketplane]
 adapters:
   socketplane: http://localhost:6675/adapter

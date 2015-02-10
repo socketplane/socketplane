@@ -44,74 +44,98 @@ type adapterPostResponse struct {
 	}
 }
 
-func psAdapterPreHook(d *Daemon, reqParams adapterRequest) *adapterPreResponse {
+func psAdapterPreHook(d *Daemon, reqParams adapterRequest) (preResp *adapterPreResponse) {
+	preResp = &adapterPreResponse{}
+	preResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+	preResp.ModifiedClientRequest.Method = reqParams.ClientRequest.Method
+	preResp.ModifiedClientRequest.Request = reqParams.ClientRequest.Request
+	preResp.ModifiedClientRequest.Body = reqParams.ClientRequest.Body
+
 	if reqParams.ClientRequest.Body != "" {
 		jsonBody := &dockerclient.ContainerConfig{}
 		err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &jsonBody)
 		if err != nil {
-			fmt.Println("Body JSON unmarsall failed", err)
+			fmt.Println("Body JSON unmarshall failed", err)
 		}
 
 		jsonBody.HostConfig.NetworkMode = "none"
 
-		preResp := &adapterPreResponse{}
-		preResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
-		preResp.ModifiedClientRequest.Method = reqParams.ClientRequest.Method
-		preResp.ModifiedClientRequest.Request = reqParams.ClientRequest.Request
-
 		body, _ := json.Marshal(jsonBody)
 		preResp.ModifiedClientRequest.Body = string(body)
 
-		return preResp
 	}
-	return nil
+
+	return
 }
 
-func psAdapterPostHook(d *Daemon, reqParams adapterRequest) *adapterPostResponse {
+func psAdapterPostHook(d *Daemon, reqParams adapterRequest) (postResp *adapterPostResponse) {
+	postResp = &adapterPostResponse{}
+	postResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
+	postResp.ModifiedServerResponse.ContentType = "application/json"
+	postResp.ModifiedServerResponse.Body = reqParams.ServerResponse.Body
+	postResp.ModifiedServerResponse.Code = reqParams.ServerResponse.Code
+
+	if reqParams.ClientRequest.Method != "POST" &&
+		reqParams.ClientRequest.Method != "DELETE" {
+		fmt.Println("Invalid method: ", reqParams.ClientRequest.Method)
+		postResp.ModifiedServerResponse.Code = 500
+		return
+	}
+
 	if reqParams.ClientRequest.Request != "" {
 		// start api looks like this /<version>/containers/<cid>/start
 		s := regexp.MustCompile("/").Split(reqParams.ClientRequest.Request, 5)
 		cid := s[3]
 
-		docker, _ := dockerclient.NewDockerClient(
-			"unix:///var/run/docker.sock", nil)
-		info, err := docker.InspectContainer(cid)
-		if err != nil {
-			fmt.Println("InspectContainer failed", err)
-		}
+		var cfg = &Connection{}
+		var op = ConnectionAdd
 
-		cfg := &Connection{}
-
-		cfg.ContainerID = string(cid)
-		cfg.ContainerName = info.Name
-		cfg.ContainerPID = strconv.Itoa(info.State.Pid)
-		cfg.Network = DefaultNetworkName
-		for _, env := range info.Config.Env {
-			val := regexp.MustCompile("=").Split(env, 3)
-			if val[0] == "SP_NETWORK" {
-				cfg.Network = strings.Trim(val[1], " ")
+		switch reqParams.ClientRequest.Method {
+		case "POST":
+			docker, _ := dockerclient.NewDockerClient(
+				"unix:///var/run/docker.sock", nil)
+			info, err := docker.InspectContainer(cid)
+			if err != nil {
+				fmt.Println("InspectContainer failed", err)
+				postResp.ModifiedServerResponse.Code = 404
+				return
 			}
+
+			cfg.ContainerID = string(cid)
+			cfg.ContainerName = info.Name
+			cfg.ContainerPID = strconv.Itoa(info.State.Pid)
+			cfg.Network = DefaultNetworkName
+			for _, env := range info.Config.Env {
+				val := regexp.MustCompile("=").Split(env, 3)
+				if val[0] == "SP_NETWORK" {
+					cfg.Network = strings.Trim(val[1], " ")
+				}
+			}
+
+			op = ConnectionAdd
+		case "DELETE":
+			var ok bool
+			if cfg, ok = d.Connections[cid]; !ok {
+				fmt.Println("Couldn't find the connection", cid)
+				postResp.ModifiedServerResponse.Code = 500
+				return
+			}
+
+			op = ConnectionDelete
 		}
 
 		context := &ConnectionContext{
-			ConnectionAdd,
+			op,
 			cfg,
 			make(chan *Connection),
 		}
+
 		d.cC <- context
 
 		<-context.Result
-
-		postResp := &adapterPostResponse{}
-		postResp.PowerstripProtocolVersion = reqParams.PowerstripProtocolVersion
-		postResp.ModifiedServerResponse.ContentType = "application/json"
-		postResp.ModifiedServerResponse.Body = reqParams.ServerResponse.Body
-		postResp.ModifiedServerResponse.Code = reqParams.ServerResponse.Code
-
-		return postResp
 	}
 
-	return nil
+	return
 }
 
 func psAdapter(d *Daemon, w http.ResponseWriter, r *http.Request) *apiError {

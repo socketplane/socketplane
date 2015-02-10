@@ -191,6 +191,7 @@ func deleteConnection(d *Daemon, w http.ResponseWriter, r *http.Request) *apiErr
 		make(chan *Connection),
 	}
 	d.cC <- context
+	<-context.Result
 	return nil
 }
 
