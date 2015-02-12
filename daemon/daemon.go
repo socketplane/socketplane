@@ -11,6 +11,7 @@ import (
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
+	"github.com/socketplane/socketplane/config"
 	"github.com/socketplane/socketplane/datastore"
 )
 
@@ -47,11 +48,25 @@ type ClusterContext struct {
 	Action int
 }
 
+func isDebugEnabled(ctx *cli.Context) bool {
+	if ctx.App != nil && !ctx.IsSet(config.CFG_DEBUG) {
+		return config.Daemon.Debug
+	}
+	return ctx.Bool(config.CFG_DEBUG)
+}
+
+func isBootstrapNode(ctx *cli.Context) bool {
+	if ctx.App != nil && !ctx.IsSet(config.CFG_BOOTSTRAP) {
+		return config.Daemon.Bootstrap
+	}
+	return ctx.Bool(config.CFG_BOOTSTRAP)
+}
+
 func (d *Daemon) Run(ctx *cli.Context) {
-	if ctx.Bool("debug") {
+	if isDebugEnabled(ctx) {
 		log.SetLevel(log.DebugLevel)
 	}
-	d.bootstrapNode = ctx.Bool("bootstrap")
+	d.bootstrapNode = isBootstrapNode(ctx)
 
 	if err := os.Mkdir("/var/run/netns", 0777); err != nil {
 		fmt.Println("mkdir /var/run/netns failed", err)
