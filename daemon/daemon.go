@@ -48,6 +48,10 @@ type ClusterContext struct {
 	Action int
 }
 
+func Initialize() {
+	OvsInit()
+}
+
 func isDebugEnabled(ctx *cli.Context) bool {
 	if ctx.App != nil && !ctx.IsSet(config.CFG_DEBUG) {
 		return config.Daemon.Debug

@@ -59,7 +59,7 @@ var OvsBridge Bridge = Bridge{Name: defaultBridgeName}
 var ovs *libovsdb.OvsdbClient
 var ContextCache map[string]string
 
-func init() {
+func OvsInit() {
 	var err error
 	ovs, err = ovs_connect()
 	if err != nil {

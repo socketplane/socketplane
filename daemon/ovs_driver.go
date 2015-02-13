@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
@@ -376,9 +377,16 @@ func ovs_connect() (*libovsdb.OvsdbClient, error) {
 	cache = make(map[string]map[string]libovsdb.Row)
 
 	// By default libovsdb connects to 127.0.0.0:6400.
-	ovs, err := libovsdb.Connect("", 0)
-	if err != nil {
-		return nil, err
+	var ovs *libovsdb.OvsdbClient
+	var err error
+	for {
+		ovs, err = libovsdb.Connect("", 0)
+		if err != nil {
+			log.Errorf("Error(%s) connecting to OVS. Retrying...", err.Error())
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		break
 	}
 	var notifier Notifier
 	ovs.Register(notifier)
@@ -386,6 +394,10 @@ func ovs_connect() (*libovsdb.OvsdbClient, error) {
 	initial, _ := ovs.MonitorAll("Open_vSwitch", "")
 	populateCache(*initial)
 	go monitorDockerBridge(ovs)
+	for getRootUuid() == "" {
+		time.Sleep(time.Second * 1)
+	}
+	log.Debug("Connected to OVS...")
 	return ovs, nil
 }
 

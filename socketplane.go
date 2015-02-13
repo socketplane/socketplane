@@ -9,6 +9,10 @@ import (
 	"github.com/socketplane/socketplane/daemon"
 )
 
+func init() {
+	daemon.Initialize()
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "socketplane"
@@ -47,5 +51,4 @@ func Run(ctx *cli.Context) {
 	}
 	d := daemon.NewDaemon()
 	d.Run(ctx)
-
 }
