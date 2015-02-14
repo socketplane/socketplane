@@ -1,5 +1,26 @@
+socketplane:
+ image: socketplane/socketplane
+ volumes:
+   - /etc/socketplane/socketplane.toml:/etc/socketplane/socketplane.toml
+   - /var/run/docker.sock:/var/run/docker.sock
+   - /usr/bin/docker:/usr/bin/docker
+   - /proc:/hostproc
+ command: "socketplane"
+ net: "host"
+ privileged: true
+ environment:
+   PROCFS: /hostproc
 ovs:
  image: socketplane/docker-ovs:2.3.0
  command: "/usr/bin/supervisord -n"
- cap_add: 
+ net: "host"
+ volumes:
+   - /etc/openvswitch/
+ cap_add:
    - NET_ADMIN
+powerstrip:
+ image: clusterhq/powerstrip:v0.0.1
+ net: "host"
+ volumes:
+   - /etc/socketplane/adapters.yml:/etc/powerstrip/adapters.yml
+   - /var/run/docker.sock:/var/run/docker.sock
