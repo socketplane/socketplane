@@ -33,6 +33,8 @@ Finally, we've implemented a distributed IP address management solution that ena
 
 [ See Socketplane with a LAMP Stack Demo Here ] ( https://www.youtube.com/watch?v=5uzUSk3NjD0 ) 
 
+[ See Socketplane with Powerstrip Demo Here ] ( https://www.youtube.com/watch?v=Icl0L8tQybs ) 
+
 ## Installation
 
 ### Vagrant
