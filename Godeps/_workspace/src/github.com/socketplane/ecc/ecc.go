@@ -30,10 +30,8 @@ import (
 var started bool
 var OfflineSupport bool = true
 var listener eccListener
-var errCh chan int
 
 func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string) error {
-	watches = make(map[WatchType]watchData)
 	bindAddress := ""
 	if bindInterface != "" {
 		intf, err := net.InterfaceByName(bindInterface)
@@ -52,7 +50,8 @@ func Start(serverMode bool, bootstrap bool, bindInterface string, dataDir string
 			}
 		}
 	}
-	errCh = make(chan int)
+	errCh := make(chan int)
+	watchForExistingRegisteredUpdates()
 	go RegisterForNodeUpdates(listener)
 	go startConsul(serverMode, bootstrap, bindAddress, dataDir, errCh)
 
@@ -102,15 +101,12 @@ func Join(address string) error {
 }
 
 func Leave() error {
+	stopWatches()
 	ret := Execute("leave")
 	if ret != 0 {
 		log.Println("Error Leaving Consul membership")
 		return errors.New("Error leaving Consul cluster")
 	}
-	code := <-errCh
-	close(errCh)
-	log.Println("Consul Agent Exited with Status ", code)
-	time.Sleep(3 * time.Second)
 	return nil
 }
 
@@ -374,10 +370,11 @@ const (
 type WatchType int
 
 type watchData struct {
-	listeners map[string][]Listener
+	listeners  map[string][]Listener
+	watchPlans []*watch.WatchPlan
 }
 
-var watches map[WatchType]watchData
+var watches map[WatchType]watchData = make(map[WatchType]watchData)
 
 type Listener interface {
 	NotifyNodeUpdate(NotifyUpdateType, string)
@@ -426,7 +423,7 @@ func addListener(wtype WatchType, key string, listener Listener) watchconsul {
 	if !contains(WATCH_TYPE_NODE, key, listener) {
 		ws, ok := watches[wtype]
 		if !ok {
-			watches[wtype] = watchData{make(map[string][]Listener)}
+			watches[wtype] = watchData{make(map[string][]Listener), make([]*watch.WatchPlan, 0)}
 			ws = watches[wtype]
 		}
 
@@ -453,13 +450,33 @@ func getListeners(wtype WatchType, key string) []Listener {
 	return nil
 }
 
-func register(params map[string]interface{}, handler watch.HandlerFunc) {
+func addWatchPlan(wtype WatchType, wp *watch.WatchPlan) {
+	ws, ok := watches[wtype]
+	if !ok {
+		return
+	}
+
+	ws.watchPlans = append(ws.watchPlans, wp)
+	watches[wtype] = ws
+}
+
+func stopWatches() {
+	for _, ws := range watches {
+		for _, wp := range ws.watchPlans {
+			wp.Stop()
+		}
+		ws.watchPlans = ws.watchPlans[:0]
+	}
+}
+
+func register(wtype WatchType, params map[string]interface{}, handler watch.HandlerFunc) {
 	// Create the watch
 	wp, err := watch.Parse(params)
 	if err != nil {
 		fmt.Printf("Register error : %s", err)
 		return
 	}
+	addWatchPlan(wtype, wp)
 	wp.Handler = handler
 	cmdFlags := flag.NewFlagSet("watch", flag.ContinueOnError)
 	httpAddr := command.HTTPAddrFlag(cmdFlags)
@@ -510,19 +527,6 @@ func updateNodeListeners(clusterNodes []*api.Node) {
 	}
 }
 
-func RegisterForNodeUpdates(listener Listener) {
-	wc := addListener(WATCH_TYPE_NODE, "", listener)
-	if wc {
-		// Compile the watch parameters
-		params := make(map[string]interface{})
-		params["type"] = "nodes"
-		handler := func(idx uint64, data interface{}) {
-			updateNodeListeners(data.([]*api.Node))
-		}
-		register(params, handler)
-	}
-}
-
 func updateKeyListeners(idx uint64, key string, data interface{}) {
 	listeners := getListeners(WATCH_TYPE_KEY, key)
 	if listeners == nil {
@@ -552,31 +556,72 @@ func updateKeyListeners(idx uint64, key string, data interface{}) {
 	}
 }
 
+func registerForNodeUpdates() {
+	// Compile the watch parameters
+	params := make(map[string]interface{})
+	params["type"] = "nodes"
+	handler := func(idx uint64, data interface{}) {
+		updateNodeListeners(data.([]*api.Node))
+	}
+	register(WATCH_TYPE_NODE, params, handler)
+}
+
+func RegisterForNodeUpdates(listener Listener) {
+	wc := addListener(WATCH_TYPE_NODE, "", listener)
+	if wc {
+		registerForNodeUpdates()
+	}
+}
+
+func registerForKeyUpdates(absKey string) {
+	params := make(map[string]interface{})
+	params["type"] = "key"
+	params["key"] = absKey
+	handler := func(idx uint64, data interface{}) {
+		updateKeyListeners(idx, absKey, data)
+	}
+	register(WATCH_TYPE_KEY, params, handler)
+}
+
 func RegisterForKeyUpdates(store string, key string, listener Listener) {
 	absKey := store + "/" + key
 	wc := addListener(WATCH_TYPE_KEY, absKey, listener)
 	if wc {
-		// Compile the watch parameters
-		params := make(map[string]interface{})
-		params["type"] = "key"
-		params["key"] = absKey
-		handler := func(idx uint64, data interface{}) {
-			updateKeyListeners(idx, absKey, data)
-		}
-		register(params, handler)
+		registerForKeyUpdates(absKey)
 	}
+}
+
+func registerForStoreUpdates(store string) {
+	// Compile the watch parameters
+	params := make(map[string]interface{})
+	params["type"] = "keyprefix"
+	params["prefix"] = store + "/"
+	handler := func(idx uint64, data interface{}) {
+		fmt.Println("NOT IMPLEMENTED Store Update :", idx, data)
+	}
+	register(WATCH_TYPE_STORE, params, handler)
 }
 
 func RegisterForStoreUpdates(store string, listener Listener) {
 	wc := addListener(WATCH_TYPE_STORE, store, listener)
 	if wc {
-		// Compile the watch parameters
-		params := make(map[string]interface{})
-		params["type"] = "keyprefix"
-		params["prefix"] = store + "/"
-		handler := func(idx uint64, data interface{}) {
-			fmt.Println("NOT IMPLEMENTED Store Update :", idx, data)
+		registerForStoreUpdates(store)
+	}
+}
+
+func watchForExistingRegisteredUpdates() {
+	for wType, ws := range watches {
+		log.Println("watchForExistingRegisteredUpdates : ", wType)
+		for key, _ := range ws.listeners {
+			log.Println("key : ", key)
+			switch wType {
+			case WATCH_TYPE_NODE:
+				go registerForNodeUpdates()
+			case WATCH_TYPE_KEY:
+				go registerForKeyUpdates(key)
+			case WATCH_TYPE_STORE:
+				go registerForStoreUpdates(key)
+			}
 		}
-		register(params, handler)
 	}
 }

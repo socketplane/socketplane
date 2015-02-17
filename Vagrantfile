@@ -18,6 +18,7 @@ echo ====> Installing Packages
 apt-get install -qq -y --no-install-recommends openvswitch-switch unzip
 curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
 mkdir -p /etc/socketplane
+ln -s /vagrant/socketplane.toml /etc/socketplane/socketplane.toml
 ln -s /vagrant/adapters.yml /etc/socketplane/adapters.yml
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin

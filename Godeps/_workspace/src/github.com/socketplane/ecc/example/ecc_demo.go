@@ -33,6 +33,10 @@ func main() {
 	keyUpdates("db")
 	keyUpdates("web")
 	// Ctrl+C handling
+	ecc.Leave()
+	time.Sleep(time.Second * 15)
+	ecc.Start(true, true, "eth1", dataDir)
+
 	handler := make(chan os.Signal, 1)
 	signal.Notify(handler, os.Interrupt)
 	for sig := range handler {

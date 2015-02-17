@@ -6,6 +6,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-16-gf706d00",
+			"Rev": "f706d00e3de6abe700c994cdd545a1a4915af060"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.6.2-10-g51fe59a",
 			"Rev": "51fe59aca108dc5680109e7b2051cbdcfa5a253c"
@@ -174,8 +179,8 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/ecc",
-			"Comment": "v0.1.1-12-g005eeec",
-			"Rev": "005eeecb7b3a5cc8404e4710384006ba8676e68c"
+			"Comment": "v0.1.1-13-gc703ba4",
+			"Rev": "c703ba40f18f8bfa76d4950351d9fdd659dabb36"
 		},
 		{
 			"ImportPath": "github.com/socketplane/go-fastping",

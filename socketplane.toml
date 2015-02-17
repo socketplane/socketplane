@@ -1,0 +1,3 @@
+[daemon]
+bootstrap = true
+debug = false

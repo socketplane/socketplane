@@ -13,10 +13,6 @@ VERSION:
 USAGE:
     $0 <options> <command> [command_options] [arguments...]
 
-OPTIONS:
-
-    -D      Debug
-
 COMMANDS:
     help
             Help and usage
@@ -283,6 +279,8 @@ start_socketplane() {
 
         if [ "$BOOTSTRAP" = "true" ] ; then
             flags="$flags --bootstrap=true"
+        else
+            flags="$flags --bootstrap=false"
         fi
     else
         while true; do
@@ -302,11 +300,13 @@ start_socketplane() {
         done
     fi
 
-    if [ "$DEBUG" = "true" ]; then
-        flags="$flags --debug=true"
+    if [ ! -f /etc/socketplane/socketplane.toml ]; then
+        mkdir -p /etc/socketplane
+        cp $PWD/socketplane.toml /etc/socketplane/socketplane.toml
     fi
 
     cid=$(docker run --name socketplane -itd --privileged=true \
+        -v /etc/socketplane/socketplane.toml:/etc/socketplane/socketplane.toml \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v /usr/bin/docker:/usr/bin/docker -v /proc:/hostproc -e PROCFS=/hostproc \
 	--net=host socketplane/socketplane socketplane $flags)
