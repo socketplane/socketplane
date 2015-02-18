@@ -46,6 +46,10 @@ if [ ! -f /opt/socketplane/functions.sh ]; then
     $curl /opt/socketplane/functions.sh https://raw.githubusercontent.com/socketplane/socketplane/master/scripts/functions.sh
 fi
 
+if [ ! -d /etc/socketplane ]; then
+    mkdir -p /etc/socketplane
+fi
+
 if [ ! -f /etc/socketplane/socketplane.toml ]; then
     $curl /etc/socketplane/socketplane.toml  https://raw.githubusercontent.com/socketplane/socketplane/master/socketplane.toml
 fi
