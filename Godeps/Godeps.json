@@ -188,8 +188,8 @@
 		},
 		{
 			"ImportPath": "github.com/socketplane/libovsdb",
-			"Comment": "v0.1",
-			"Rev": "555a561202ec17fe6c068038a35291ce9ba33066"
+			"Comment": "v0.1-2-g58cf012",
+			"Rev": "58cf01279880d621a67c5f929af9ed59ab409373"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",

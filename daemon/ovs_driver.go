@@ -408,6 +408,8 @@ func (n Notifier) Update(context interface{}, tableUpdates libovsdb.TableUpdates
 	populateCache(tableUpdates)
 	update <- &tableUpdates
 }
+func (n Notifier) Disconnected(ovsClient *libovsdb.OvsdbClient) {
+}
 func (n Notifier) Locked([]interface{}) {
 }
 func (n Notifier) Stolen([]interface{}) {

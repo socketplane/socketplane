@@ -64,6 +64,8 @@ func OvsInit() {
 	ovs, err = ovs_connect()
 	if err != nil {
 		log.Error("Error connecting OVS ", err)
+	} else {
+		ovs.Register(notifier{})
 	}
 	ContextCache = make(map[string]string)
 	populateContextCache()
@@ -448,4 +450,22 @@ func installRule(args ...string) ([]byte, error) {
 	}
 
 	return output, err
+}
+
+type notifier struct {
+}
+
+func (n notifier) Disconnected(ovsClient *libovsdb.OvsdbClient) {
+	log.Error("OVS Disconnected. Retrying...")
+	ovs = nil
+	go OvsInit()
+}
+
+func (n notifier) Update(context interface{}, tableUpdates libovsdb.TableUpdates) {
+}
+func (n notifier) Locked([]interface{}) {
+}
+func (n notifier) Stolen([]interface{}) {
+}
+func (n notifier) Echo([]interface{}) {
 }
