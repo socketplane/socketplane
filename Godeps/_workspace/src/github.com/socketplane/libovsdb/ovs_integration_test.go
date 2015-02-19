@@ -294,6 +294,8 @@ func (n Notifier) Stolen([]interface{}) {
 func (n Notifier) Echo([]interface{}) {
 	n.echoChan <- true
 }
+func (n Notifier) Disconnected(client *OvsdbClient) {
+}
 
 func TestDBSchemaValidation(t *testing.T) {
 

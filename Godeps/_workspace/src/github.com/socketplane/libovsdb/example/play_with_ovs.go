@@ -28,6 +28,7 @@ func play(ovs *libovsdb.OvsdbClient) {
 							name := newRow.Fields["name"].(string)
 							if name == "stop" {
 								fmt.Println("Bridge stop detected : ", uuid)
+								ovs.Disconnect()
 								quit <- true
 							}
 						}
@@ -159,4 +160,6 @@ func (n Notifier) Locked([]interface{}) {
 func (n Notifier) Stolen([]interface{}) {
 }
 func (n Notifier) Echo([]interface{}) {
+}
+func (n Notifier) Disconnected(client *libovsdb.OvsdbClient) {
 }
