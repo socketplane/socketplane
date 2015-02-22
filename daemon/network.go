@@ -71,6 +71,9 @@ func CreateNetwork(id string, subnet *net.IPNet) (*Network, error) {
 	addr, err := GetIfaceAddr(id)
 	if err != nil {
 		log.Debugf("Interface with name %s does not exist. Creating it.", id)
+		if ovs == nil {
+			return nil, errors.New("OVS not connected")
+		}
 		// Interface does not exist, use the generated subnet
 		gateway = ipam.Request(*subnet)
 		network = &Network{id, subnet.String(), gateway.String(), vlan}
@@ -127,6 +130,9 @@ func DeleteNetwork(id string) error {
 	network, err := GetNetwork(id)
 	if err != nil {
 		return err
+	}
+	if ovs == nil {
+		return errors.New("OVS not connected")
 	}
 	eccerror := ecc.Delete(networkStore, id)
 	if eccerror != ecc.OK {
