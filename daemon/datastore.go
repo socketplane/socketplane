@@ -1,4 +1,4 @@
-package datastore
+package daemon
 
 import (
 	"os"
@@ -11,7 +11,7 @@ const dataDir = "/tmp/socketplane"
 
 var listener eccListener
 
-func Init(bindInterface string, bootstrap bool) error {
+func InitDatastore(bindInterface string, bootstrap bool) error {
 	err := ecc.Start(bootstrap, bootstrap, bindInterface, dataDir)
 	if err == nil {
 		go ecc.RegisterForNodeUpdates(listener)
@@ -19,11 +19,11 @@ func Init(bindInterface string, bootstrap bool) error {
 	return err
 }
 
-func Join(address string) error {
+func JoinDatastore(address string) error {
 	return ecc.Join(address)
 }
 
-func Leave() error {
+func LeaveDatastore() error {
 	if err := ecc.Leave(); err != nil {
 		log.Error(err)
 		return err

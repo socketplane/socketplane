@@ -214,3 +214,26 @@ func GetIfaceForRoute(address string) (string, error) {
 	}
 	return link.Attrs().Name, nil
 }
+
+func setBit(a []byte, k uint) {
+	a[k/8] |= 1 << (k % 8)
+}
+
+func clearBit(a []byte, k uint) {
+	a[k/8] &= ^(1 << (k % 8))
+}
+
+func testBit(a []byte, k uint) bool {
+	return ((a[k/8] & (1 << (k % 8))) != 0)
+}
+
+func testAndSetBit(a []byte) uint {
+	var i uint
+	for i = uint(0); i < uint(len(a)*8); i++ {
+		if !testBit(a, i) {
+			setBit(a, i)
+			return i + 1
+		}
+	}
+	return i
+}

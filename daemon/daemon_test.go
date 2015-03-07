@@ -8,7 +8,6 @@ import (
 
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
-	"github.com/socketplane/socketplane/datastore"
 )
 
 func TestDaemonRun(t *testing.T) {
@@ -63,7 +62,7 @@ func TestClusterBindRPC(t *testing.T) {
 	if d.clusterListener != "eth0" {
 		t.Fatal("field not updated")
 	}
-	datastore.Leave()
+	LeaveDatastore()
 }
 
 func TestClusterJoinRPC(t *testing.T) {
@@ -79,7 +78,7 @@ func TestClusterJoinRPC(t *testing.T) {
 	if d.clusterListener != "eth0" {
 		t.Fatal("field not updated")
 	}
-	datastore.Leave()
+	LeaveDatastore()
 }
 
 //ToDo: @mavenugo to write this test

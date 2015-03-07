@@ -12,7 +12,6 @@ import (
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/socketplane/socketplane/config"
-	"github.com/socketplane/socketplane/datastore"
 )
 
 type Daemon struct {
@@ -93,7 +92,7 @@ func (d *Daemon) Run(ctx *cli.Context) {
 		} else {
 			log.Errorf("Unable to identify any Interface to Bind to. Going with Defaults")
 		}
-		datastore.Init(bindInterface, d.bootstrapNode)
+		InitDatastore(bindInterface, d.bootstrapNode)
 		Bonjour(bindInterface)
 		if !d.bootstrapNode {
 			d.serialChan <- true
@@ -174,7 +173,7 @@ func ClusterRPCHandler(d *Daemon) {
 				break
 			}
 		case ClusterLeave:
-			if err := datastore.Leave(); err != nil {
+			if err := LeaveDatastore(); err != nil {
 				log.Errorf("Error leaving cluster. %s", err.Error())
 				break
 			}
@@ -191,12 +190,12 @@ func clusterBindRPC(d *Daemon, bindInterface string) error {
 	if d.clusterListener != "" {
 		log.Debug("Cluster is already bound on another interface. Leaving...")
 		once = false
-		datastore.Leave()
+		LeaveDatastore()
 		time.Sleep(time.Second * 5)
 	}
 	log.Debugf("Setting new cluster listener to %s", bindInterface)
 	d.clusterListener = bindInterface
-	datastore.Init(d.clusterListener, d.bootstrapNode)
+	InitDatastore(d.clusterListener, d.bootstrapNode)
 
 	if !d.bootstrapNode && once {
 		d.serialChan <- true
@@ -211,14 +210,14 @@ func clusterJoinRPC(d *Daemon, joinAddress string) error {
 	}
 	if d.clusterListener != bindInterface {
 		log.Debug("Cluster is already bound on another interface. Leaving...")
-		datastore.Leave()
+		LeaveDatastore()
 		time.Sleep(time.Second * 10)
 		log.Debugf("Setting new cluster listener to %s", bindInterface)
 		d.bootstrapNode = false
 		d.clusterListener = bindInterface
-		datastore.Init(d.clusterListener, d.bootstrapNode)
+		InitDatastore(d.clusterListener, d.bootstrapNode)
 	}
-	if err = datastore.Join(joinAddress); err != nil {
+	if err = JoinDatastore(joinAddress); err != nil {
 		log.Errorf("Could not join cluster %s. %s", joinAddress, err.Error())
 	}
 	return nil
