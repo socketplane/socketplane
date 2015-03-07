@@ -41,10 +41,10 @@ type eccListener struct {
 func (e eccListener) NotifyNodeUpdate(nType ecc.NotifyUpdateType, nodeAddress string) {
 	if nType == ecc.NOTIFY_UPDATE_ADD {
 		log.Infof("New Node joined the cluster : %s", nodeAddress)
-		// TODO : Add code here to handle new cluster node case
+		AddPeer(nodeAddress)
 	} else if nType == ecc.NOTIFY_UPDATE_DELETE {
 		log.Infof("Node left the cluster : %s", nodeAddress)
-		// TODO : Add code here to handle node leaving the cluster case
+		DeletePeer(nodeAddress)
 	}
 }
 
