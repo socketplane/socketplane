@@ -10,6 +10,8 @@ But in many cloud deployments, Multicast is disabled by default. Hence the autom
 In order to address this problem, we added an experimental Static Clustering feature where the user must add 
 atleast 1 peer node to particpate in the cluster.
 
+Please note that this is experimental and a lot of work pending in making it usable (save config, restartability, etc.)
+
 ### 1. Bind to a network interface on the first node
   make sure that the network interface that is bound to has an ip-address that is reachable by the peers.
 (For example : Don't bind to a VirtualBox NAT interface. Rather add a Bridged or Internal port and bind to that).
