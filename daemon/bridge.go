@@ -18,7 +18,6 @@ import (
 	log "github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/socketplane/libovsdb"
 	"github.com/socketplane/socketplane/Godeps/_workspace/src/github.com/vishvananda/netns"
-	"github.com/socketplane/socketplane/ipam"
 )
 
 // Gateway addresses are from docker/daemon/networkdriver/bridge/driver.go to reflect similar behaviour
@@ -234,7 +233,7 @@ func AddConnection(nspid int, networkName string) (ovsConnection OvsConnection, 
 
 	_, subnet, _ := net.ParseCIDR(bridgeNetwork.Subnet)
 
-	ip := ipam.Request(*subnet)
+	ip := IPAMRequest(*subnet)
 	mac := generateMacAddr(ip).String()
 
 	subnetString := subnet.String()
@@ -339,7 +338,7 @@ func DeleteConnection(connection OvsConnection) error {
 	deletePort(ovs, OvsBridge.Name, connection.Name)
 	ip := net.ParseIP(connection.Ip)
 	_, subnet, _ := net.ParseCIDR(connection.Ip + connection.Subnet)
-	ipam.Release(ip, *subnet)
+	IPAMRelease(ip, *subnet)
 	return nil
 }
 

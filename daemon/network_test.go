@@ -11,7 +11,7 @@ import (
 
 var subnetArray []*net.IPNet
 
-func TestInit(t *testing.T) {
+func TestNetworkInit(t *testing.T) {
 	if os.Getuid() != 0 {
 		msg := "Skipped test because it requires root privileges."
 		log.Printf(msg)
@@ -72,7 +72,7 @@ func TestGetNetwork(t *testing.T) {
 	}
 }
 
-func TestCleanup(t *testing.T) {
+func TestNetworkCleanup(t *testing.T) {
 	if os.Getuid() != 0 {
 		msg := "Skipped test because it requires root privileges."
 		log.Printf(msg)
