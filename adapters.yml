@@ -6,5 +6,10 @@ endpoints:
     post: [socketplane]
   "DELETE /*/containers/*":
     post: [socketplane]
+  "POST /containers/*/start":
+    pre: [socketplane]
+    post: [socketplane]
+  "DELETE /containers/*":
+    post: [socketplane]
 adapters:
   socketplane: http://localhost:6675/adapter

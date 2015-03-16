@@ -85,7 +85,16 @@ func psAdapterPostHook(d *Daemon, reqParams adapterRequest) (postResp *adapterPo
 	if reqParams.ClientRequest.Request != "" {
 		// start api looks like this /<version>/containers/<cid>/start
 		s := regexp.MustCompile("/").Split(reqParams.ClientRequest.Request, 5)
-		cid := s[3]
+		var cid string
+
+		if strings.HasPrefix(reqParams.ClientRequest.Request, "/v") {
+			// start api looks like this /<version>/containers/<cid>/start
+			cid = s[3]
+
+		} else {
+			// start api looks like this /containers/<cid>/start for the fsouza/go-dockerclient without api version
+			cid = s[2]
+		}
 
 		var cfg = &Connection{}
 		var op = ConnectionAdd
