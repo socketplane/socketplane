@@ -137,7 +137,7 @@ deps() {
     echo ".... Docker Server Version:   1.4 or higher"
     echo "....   Current:               $DOCKER_SVER"
     echo ".... Docker Client Version:   1.16 or higher"
-    echo "....   Current:               $DOCKER_SVER"
+    echo "....   Current:               $DOCKER_CVER"
 }
 
 kernel_opts(){
