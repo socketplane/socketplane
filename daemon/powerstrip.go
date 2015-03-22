@@ -52,10 +52,17 @@ func psAdapterPreHook(d *Daemon, reqParams adapterRequest) (preResp *adapterPreR
 	preResp.ModifiedClientRequest.Body = reqParams.ClientRequest.Body
 
 	if reqParams.ClientRequest.Body != "" {
-		jsonBody := &dockerclient.ContainerConfig{}
-		err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &jsonBody)
-		if err != nil {
-			fmt.Println("Body JSON unmarshall failed", err)
+
+		jsonBody := dockerclient.ContainerConfig{}
+		if err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &(jsonBody.HostConfig)); err != nil {
+			fmt.Println("json unmarshal failed in preHook")
+		}
+
+		if strings.HasPrefix(jsonBody.HostConfig.NetworkMode, "container") {
+			//we do not want to modify container NetworkMode, early return
+			fmt.Println("container networkmode, do not modify")
+
+			return
 		}
 
 		jsonBody.HostConfig.NetworkMode = "none"
@@ -79,6 +86,18 @@ func psAdapterPostHook(d *Daemon, reqParams adapterRequest) (postResp *adapterPo
 		reqParams.ClientRequest.Method != "DELETE" {
 		fmt.Println("Invalid method: ", reqParams.ClientRequest.Method)
 		postResp.ModifiedServerResponse.Code = 500
+		return
+	}
+
+	jsonBody := dockerclient.ContainerConfig{}
+	if err := json.Unmarshal([]byte(reqParams.ClientRequest.Body), &(jsonBody.HostConfig)); err != nil {
+		fmt.Println("json unmarshal failed in postHook")
+	}
+
+	if strings.HasPrefix(jsonBody.HostConfig.NetworkMode, "container") {
+		//we do not want to modify container NetworkMode, early return
+		fmt.Println("container network mode, do not modify")
+
 		return
 	}
 
