@@ -402,39 +402,74 @@ func setupIPTables(bridgeName string, bridgeIP string) error {
 	*/
 
 	log.Debug("Setting up iptables")
-	natArgs := []string{"-t", "nat", "-A", "POSTROUTING", "-s", bridgeIP, "!", "-o", bridgeName, "-j", "MASQUERADE"}
-	output, err := installRule(natArgs...)
-	if err != nil {
-		log.Debugf("Unable to enable network bridge NAT: %s", err)
-		return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
-	}
-	if len(output) != 0 {
-		log.Debugf("Error enabling network bridge NAT: %s", err)
-		return fmt.Errorf("Error enabling network bridge NAT: %s", output)
-	}
-
-	outboundArgs := []string{"-A", "FORWARD", "-i", bridgeName, "!", "-o", bridgeName, "-j", "ACCEPT"}
-	output, err = installRule(outboundArgs...)
-	if err != nil {
-		log.Debugf("Unable to enable network outbound forwarding: %s", err)
-		return fmt.Errorf("Unable to enable network outbound forwarding: %s", err)
-	}
-	if len(output) != 0 {
-		log.Debugf("Error enabling network outbound forwarding: %s", output)
-		return fmt.Errorf("Error enabling network outbound forwarding: %s", output)
+	natArgs := []string{"-s", bridgeIP, "!", "-o", bridgeName, "-j", "MASQUERADE"}
+	if !ruleExists("nat", "POSTROUTING", natArgs...) {
+		output, err := installRule(append([]string{
+			"-t", "nat", "-A", "POSTROUTING"}, natArgs...)...)
+		if err != nil {
+			log.Debugf("Unable to enable network bridge NAT: %s", err)
+			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		}
+		if len(output) != 0 {
+			log.Debugf("Error enabling network bridge NAT: %s", err)
+			return fmt.Errorf("Error enabling network bridge NAT: %s", output)
+		}
 	}
 
-	inboundArgs := []string{"-A", "FORWARD", "-o", bridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
-	output, err = installRule(inboundArgs...)
-	if err != nil {
-		log.Debugf("Unable to enable network inbound forwarding: %s", err)
-		return fmt.Errorf("Unable to enable network inbound forwarding: %s", err)
+	outboundArgs := []string{"-i", bridgeName, "!", "-o", bridgeName, "-j", "ACCEPT"}
+	if !ruleExists("", "FORWARD", outboundArgs...) {
+		output, err := installRule(append([]string{
+			"-A", "FORWARD"}, outboundArgs...)...)
+		if err != nil {
+			log.Debugf("Unable to enable network outbound forwarding: %s", err)
+			return fmt.Errorf("Unable to enable network outbound forwarding: %s", err)
+		}
+		if len(output) != 0 {
+			log.Debugf("Error enabling network outbound forwarding: %s", output)
+			return fmt.Errorf("Error enabling network outbound forwarding: %s", output)
+		}
 	}
-	if len(output) != 0 {
-		log.Debugf("Error enabling network inbound forwarding: %s")
-		return fmt.Errorf("Error enabling network inbound forwarding: %s", output)
+
+	inboundArgs := []string{"-o", bridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	if !ruleExists("", "FORWARD", inboundArgs...) {
+		output, err := installRule(append([]string{
+			"-A", "FORWARD"}, inboundArgs...)...)
+		if err != nil {
+			log.Debugf("Unable to enable network inbound forwarding: %s", err)
+			return fmt.Errorf("Unable to enable network inbound forwarding: %s", err)
+		}
+		if len(output) != 0 {
+			log.Debugf("Error enabling network inbound forwarding: %s")
+			return fmt.Errorf("Error enabling network inbound forwarding: %s", output)
+		}
 	}
 	return nil
+}
+
+// Check if a rule exists
+func ruleExists(table string, chain string, rule ...string) bool {
+	if string(table) == "" {
+		table = "filter"
+	}
+
+	// iptables -C, --check option was added in v.1.4.11
+	// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
+
+	// try -C
+	// if exit status is 0 then return true, the rule exists
+	if _, err := installRule(append([]string{
+		"-t", table, "-C", chain}, rule...)...); err == nil {
+		return true
+	}
+
+	//if iptables has not -C option, check "iptables -t TABLE -S CHAIN"
+	// this checks rules in a specific chain in a specific table
+
+	ruleString := strings.Join(rule, " ")
+	args := []string{"-t", table, "-S", chain}
+	existingRules, _ := installRule(args...)
+
+	return strings.Contains(string(existingRules), ruleString)
 }
 
 func installRule(args ...string) ([]byte, error) {
