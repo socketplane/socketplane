@@ -61,7 +61,7 @@ The VM's are named `socketplane-{n}`, where `n` is a number from 1 to `SOCKETPLA
     vagrant ssh socketplane-2
     vagrant ssh socketplane-3
 
-You can start Docker containters in each of the VM's and they will all be in a default network.
+You can start Docker containers in each of the VM's and they will all be in a default network.
 
     sudo socketplane run -itd ubuntu
 
