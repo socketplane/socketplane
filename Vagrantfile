@@ -10,11 +10,11 @@ echo "export DOCKERHUB_MAIL=#{ENV['DOCKERHUB_MAIL']}" >> ~/.profile
 SCRIPT
 
 $install = <<SCRIPT
-echo ====> Updating Packages
+echo "====> Updating Packages"
 export DEBIAN_FRONTEND=noninteractive
 # -qq is pointless, it doesn't work :S
 apt-get update > /dev/null
-echo ====> Installing Packages
+echo "====> Installing Packages"
 apt-get install -qq -y --no-install-recommends openvswitch-switch unzip
 curl -sSL https://get.docker.com/ubuntu/ | sh > /dev/null
 mkdir -p /etc/socketplane
@@ -26,16 +26,16 @@ wget --quiet https://dl.bintray.com/mitchellh/consul/0.4.1_linux_amd64.zip
 unzip *.zip
 rm *.zip
 cd /vagrant && docker build -q -t socketplane/socketplane . > /dev/null
-echo ====> Installing SocketPlane
+echo "====> Installing SocketPlane"
 socketplane install unattended
 SCRIPT
 
 $ubuntu = <<SCRIPT
-echo ====> Updating Packages
+echo "====> Updating Packages"
 export DEBIAN_FRONTEND=noninteractive
 # -qq is pointless, it doesn't work :S
 apt-get update > /dev/null
-echo ====> Installing Packages
+echo "====> Installing Packages"
 apt-get install -qq -y --no-install-recommends unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
 cd /usr/bin
@@ -45,9 +45,9 @@ rm *.zip
 SCRIPT
 
 $redhat = <<SCRIPT
-echo ====> Updating Packages
+echo "====> Updating Packages"
 yum -qy update
-echo ====> Installing Packages
+echo "====> Installing Packages"
 yum -qy remove docker
 yum -qy install unzip
 ln -s /vagrant/scripts/socketplane.sh /usr/bin/socketplane
