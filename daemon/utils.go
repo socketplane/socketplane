@@ -31,7 +31,7 @@ func CheckRouteOverlaps(toCheck *net.IPNet) error {
 	return nil
 }
 
-// Detects overlap between one IPNet and another
+// NetworkOverlaps: Detects overlap between one IPNet and another
 func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 	if firstIP, _ := NetworkRange(netX); netY.Contains(firstIP) {
 		return true
@@ -42,7 +42,7 @@ func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 	return false
 }
 
-// Calculates the first and last IP addresses in an IPNet
+// NetworkRange: Calculates the first and last IP addresses in an IPNet
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	var (
 		netIP   = network.IP.To4()
@@ -56,7 +56,7 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	return firstIP, lastIP
 }
 
-// Given a netmask, calculates the number of available hosts
+// NetworkSize: Given a netmask, calculates the number of available hosts
 func NetworkSize(mask net.IPMask) int32 {
 	m := net.IPv4Mask(0, 0, 0, 0)
 	for i := 0; i < net.IPv4len; i++ {
@@ -65,7 +65,7 @@ func NetworkSize(mask net.IPMask) int32 {
 	return int32(binary.BigEndian.Uint32(m)) + 1
 }
 
-// Return the IPv4 address of a network interface
+// GetIfaceAddr returns the IPv4 address of a network interface
 func GetIfaceAddr(name string) (*net.IPNet, error) {
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
